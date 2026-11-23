@@ -15,6 +15,7 @@
   --mono:"Cascadia Mono","Consolas","Courier New",monospace;
 }
 *{box-sizing:border-box}
+:root{--sat:0px;--sab:0px}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:13.5px/1.6 "Microsoft YaHei","PingFang SC",system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;
   background-image:linear-gradient(rgba(31,111,235,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(31,111,235,.035) 1px,transparent 1px);
@@ -23,7 +24,7 @@ button{font:inherit;color:inherit}
 button:disabled{opacity:.45;cursor:not-allowed}
 svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
 /* ===== 顶栏 ===== */
-#top{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:nowrap;min-height:56px}
+#top{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:nowrap;min-height:56px;padding-top:calc(11px + var(--sat))!important}
 .brand{display:flex;align-items:center;gap:9px;flex:none}
 .brand .mark{width:32px;height:32px;border-radius:9px;background:var(--amber-soft);border:1px solid #BFD3F0;display:flex;align-items:center;justify-content:center;color:var(--amber)}
 .brand h1{margin:0;font-size:15.5px;letter-spacing:2px;font-weight:700;white-space:nowrap}
@@ -39,7 +40,24 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .btn.pri{background:var(--amber);border-color:var(--amber-d);color:#FFFFFF;font-weight:600}
 .btn.pri:hover{background:var(--amber-d)}
 .btn.danger:hover{border-color:var(--bad);color:var(--bad)}
-/* ===== 网格总览 ===== */
+/* ===== 角色选择页 ===== */
+#roleView{flex:1;overflow:auto;padding:calc(28px + var(--sat)) 22px 40px;display:flex;flex-direction:column;align-items:center}
+.role-hero{text-align:center;margin-bottom:26px}
+.role-hero .mark{width:64px;height:64px;border-radius:18px;background:var(--amber-soft);border:1px solid #BFD3F0;display:flex;align-items:center;justify-content:center;color:var(--amber);margin:0 auto 14px}
+.role-hero .mark svg{width:32px;height:32px}
+.role-hero h2{margin:0;font-size:19px;letter-spacing:2px}
+.role-hero p{color:var(--ink2);font-size:12.5px;margin:6px 0 0;line-height:1.9}
+.rolechoice{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;width:100%;max-width:640px}
+.rolecard{flex:1;min-width:240px;max-width:300px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 18px;cursor:pointer;transition:border-color .15s,box-shadow .15s;text-align:left}
+.rolecard:hover{border-color:var(--amber);box-shadow:0 10px 26px rgba(31,111,235,.12)}
+.rolecard .rc-ico{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.rolecard.master .rc-ico{background:var(--amber-soft);color:var(--amber)}
+.rolecard.slave .rc-ico{background:#EAF6EF;color:var(--ok)}
+.rolecard h3{margin:0 0 6px;font-size:15px}
+.rolecard p{margin:0;color:var(--ink2);font-size:12px;line-height:1.9}
+.rolecard .rc-go{margin-top:12px;color:var(--amber);font-size:12px;font-weight:600}
+.rolecard.slave .rc-go{color:var(--ok)}
+.role-switch{margin-top:22px;color:var(--ink2);font-size:11.5px;text-decoration:underline;cursor:pointer}
 #gridView{flex:1;overflow:auto;padding:14px 16px 24px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .grid.cols1{grid-template-columns:minmax(0,520px);justify-content:center}
@@ -190,7 +208,7 @@ input[type=range]{accent-color:var(--amber)}
 <symbol id="i-back2" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
 </defs></svg>
 
-<header id="top">
+<header id="top" class="hidden">
   <div class="brand">
     <span class="mark"><svg class="ic"><use href="#i-monitor"/></svg></span>
     <h1>设备管家</h1>
@@ -207,7 +225,29 @@ input[type=range]{accent-color:var(--amber)}
   </div>
 </header>
 
-<main id="gridView">
+<main id="roleView">
+  <div class="role-hero">
+    <div class="mark"><svg><use href="#i-monitor"/></svg></div>
+    <h2>设备管家</h2>
+    <p>选择这台手机的角色，之后可随时在设置里切换</p>
+  </div>
+  <div class="rolechoice">
+    <div class="rolecard master" id="pickMaster">
+      <div class="rc-ico"><svg class="ic" style="width:24px;height:24px"><use href="#i-plug"/></svg></div>
+      <h3>控制端</h3>
+      <p>添加并控制其他设备：电视盒子、平板、手机。可输入配对码连接安卓 11+ 的「无线调试」设备。</p>
+      <div class="rc-go">进入控制台 →</div>
+    </div>
+    <div class="rolecard slave" id="pickSlave">
+      <div class="rc-ico"><svg class="ic" style="width:24px;height:24px"><use href="#i-monitor"/></svg></div>
+      <h3>被控端</h3>
+      <p>把本机交给其他设备控制：安装 Shizuku（免 root），一键开启网络 ADB，等待对方连接。</p>
+      <div class="rc-go">准备被控 →</div>
+    </div>
+  </div>
+</main>
+
+<main id="gridView" class="hidden">
   <div class="grid cols2" id="grid"></div>
   <div class="addcard" id="addCard" data-add style="margin:14px auto 0;max-width:420px;min-height:120px">
     <span class="plus"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></span>
@@ -259,13 +299,6 @@ input[type=range]{accent-color:var(--amber)}
             <button class="btn pri" id="btnSzEnable">开启网络 ADB (5555)</button>
           </div>
           <p class="hint" id="szHint">本机作为被控端：开启后，局域网内其他设备管家连接 <span style="font-family:var(--mono)">本机IP:5555</span> 即可控制本机；连接时本机会弹出「允许调试」确认框，点允许即可（这就是远程控制邀请确认）。</p>
-        </div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn" id="btnSzCheck"><svg class="ic"><use href="#i-refresh"/></svg>检查</button>
-            <button class="btn" id="btnSzPerm">授权</button>
-            <button class="btn pri" id="btnSzEnable">开启网络 ADB (5555)</button>
-          </div>
-          <p class="hint" id="szHint">开启后，局域网内其他设备管家即可直连本机。需配合 Shizuku（免 root，无线调试方式启动一次服务）。</p>
         </div>
         <div class="sect">
           <div class="sect-t">连接说明</div>
@@ -805,14 +838,63 @@ function setCtlTab(id){
 }
 $('btnBack').addEventListener('click', leaveCtl);
 
-/* init */
-(async function(){
-  setViewCols(2);
+/* ---------- 角色选择 ---------- */
+let role = localStorage.getItem('butler.role') || '';
+function enterRole(r){
+  role = r;
+  localStorage.setItem('butler.role', r);
+  $('roleView').classList.add('hidden');
+  $('top').classList.remove('hidden');
+  if (r === 'slave'){
+    // 被控端：进控制台并聚焦被控面板
+    $('gridView').classList.remove('hidden');
+    openSlaveMode();
+    toast('已进入被控模式：按左栏指引开启网络 ADB', 'ok');
+  } else {
+    $('gridView').classList.remove('hidden');
+  }
+  await0();
+}
+async function openSlaveMode(){
+  if (!IS_NATIVE){
+    toast('被控端功能需要手机版（桌面浏览器版暂不支持作为被控端）', 'bad');
+    return;
+  }
+  // 打开任一台已连接设备的控制视图以显示左栏被控面板；无连接时空展示
+  if (devices.length){
+    openCtl(devices[0].serial);
+  }
+  await shizukuRefresh();
+  const el = $('sectSlave');
+  if (el){
+    el.style.display = '';
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+}
+$('pickMaster').addEventListener('click', ()=> enterRole('master'));
+$('pickSlave').addEventListener('click', ()=> enterRole('slave'));
+$('btnAdd').addEventListener('click', ()=>{
+  const f = $('addFormCard');
+  if (f) f.scrollIntoView({behavior:'smooth', block:'center'});
+  const inp = $('addrInput');
+  if (inp) inp.focus();
+});
+async function await0(){
   await refreshStatus();
   startGrid();
   setInterval(refreshStatus, 20000);
   if (IS_NATIVE){ shizukuRefresh(); }
   bindAddCards();
+}
+
+/* init */
+(async function(){
+  setViewCols(2);
+  if (!role){ $('roleView').classList.remove('hidden'); return; }
+  $('top').classList.remove('hidden');
+  $('gridView').classList.remove('hidden');
+  await await0();
+  if (role === 'slave') openSlaveMode();
 })();
 </script>
 </body>
