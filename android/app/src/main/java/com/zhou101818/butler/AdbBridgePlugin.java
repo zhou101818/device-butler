@@ -58,6 +58,27 @@ public class AdbBridgePlugin extends Plugin {
         return AdbKeyPair.read(priv, pub);
     }
 
+    /** 控制端本机 adb 公钥（base64 主体，无尾缀），供配对时提交给被控端 */
+    @PluginMethod
+    public void publicKey(PluginCall call) {
+        try {
+            File pub = new File(keyDir(), "adbkey.pub");
+            if (!pub.exists()) {
+                new File(keyDir(), "adbkey").delete();
+                loadKeyPair();
+            }
+            String content = new String(java.nio.file.Files.readAllBytes(pub.toPath())).trim();
+            // 格式：base64主体 name@host，取主体
+            String body = content.split("\\s+")[0];
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            ret.put("key", body);
+            call.resolve(ret);
+        } catch (Throwable t) {
+            call.reject("读取公钥失败：" + String.valueOf(t.getMessage()));
+        }
+    }
+
     private Dadb client(String serial) throws IOException {
         Dadb d = clients.get(serial);
         if (d == null) throw new IOException("设备未连接：" + serial);

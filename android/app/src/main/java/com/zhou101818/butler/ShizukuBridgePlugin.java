@@ -147,6 +147,25 @@ public class ShizukuBridgePlugin extends Plugin {
         return svc.exec(cmd);
     }
 
+    // ---- 静态 shell 通道（供 PairServerPlugin 复用同一 UserService）----
+    private static volatile ShizukuBridgePlugin active = null;
+
+    @Override
+    protected void handleOnActivate() {
+        active = this;
+    }
+
+    public static void probeShell() throws Exception {
+        String out = shellExec("echo ok");
+        if (out == null || !out.contains("ok")) throw new IOException("shell 通道无响应");
+    }
+
+    public static String shellExec(String cmd) throws Exception {
+        ShizukuBridgePlugin p = active;
+        if (p == null) throw new IOException("插件未激活");
+        return p.runShizukuCmd(cmd);
+    }
+
     @PluginMethod
     public void enableNetworkAdb(final PluginCall call) {
         try {

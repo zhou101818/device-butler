@@ -352,6 +352,19 @@ input[type=range]{accent-color:var(--amber)}
     <div class="val" id="slaveAddr" title="点击复制">检测中…</div>
   </div>
 
+  <div class="slavepanel" style="margin-top:12px">
+    <h3>配对码（免弹窗直连）</h3>
+    <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin:6px 0 10px">
+      <span style="font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:8px;color:var(--amber-d)" id="pairCodeDisplay">------</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <input id="pairCodeInput" maxlength="6" inputmode="numeric" placeholder="自定义 6 位数字" style="width:140px;text-align:center;font-family:var(--mono);font-size:16px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);border-radius:9px;padding:8px 10px">
+      <button class="btn" id="btnPairSet">设置</button>
+      <button class="btn pri" id="btnPairSrv">开启配对服务</button>
+    </div>
+    <p class="hint" style="text-align:center" id="pairHint">控制端输入此配对码即可免弹窗直连（比「允许调试」更安全也更快捷）。未开启时按原方式连接。</p>
+  </div>
+
   <div class="role-switch-bar" id="switchToMaster">切换为控制端</div>
 </div>
 
@@ -379,8 +392,10 @@ input[type=range]{accent-color:var(--amber)}
     <h3>添加设备</h3>
     <div class="mform">
       <input id="addrInput2" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">
+      <input id="pairInput2" maxlength="6" inputmode="numeric" placeholder="配对码（选填）" style="max-width:150px;text-align:center;font-family:var(--mono)">
       <button class="btn pri" id="btnDoConnect2">连接</button>
     </div>
+    <div style="font-size:11px;color:var(--ink2);margin-top:6px">填了 6 位配对码 → 对方设备无需任何确认，直接连上（对方需开启配对服务）</div>
     <div id="addrErr2" style="display:none;color:#B91C1C;background:#FCE8E8;border:1px solid #F3B9B9;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.8;margin-top:8px"></div>
     <div class="mreclist" id="recentBox2"></div>
   </div>
@@ -996,24 +1011,46 @@ function renderRecent2(){
 async function doConnect2(){
   const inp = $('addrInput2');
   const addr = inp.value.trim();
+  const pairCode = $('pairInput2').value.trim();
   const errBox = $('addrErr2');
   errBox.style.display = 'none';
   if (!addr){ errBox.textContent = '请输入 IP:端口'; errBox.style.display = 'block'; return; }
   const btn = $('btnDoConnect2');
   btn.disabled = true; btn.textContent = '连接中…';
+  // 配对码流程：先把本机公钥提交给被控端验证并注入白名单
+  if (pairCode && IS_NATIVE){
+    try {
+      const host = addr.split(':')[0];
+      const pkR = await window.Capacitor.Plugins.AdbBridge.publicKey();
+      await fetch('http://' + host + ':55666/pair', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pairCode: pairCode, publicKey: pkR.key, name: '设备管家控制端'})
+      }).then(async r => {
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.msg || '配对失败');
+      });
+      toast('配对成功，正在连接…', 'ok');
+    } catch(e){
+      btn.disabled = false; btn.textContent = '连接';
+      errBox.textContent = '配对失败：' + String(e && e.message || e) + '（确认对方已开启配对服务、码正确后重试）';
+      errBox.style.display = 'block';
+      return;
+    }
+  }
   const r = await api('/api/connect', {addr});
   btn.disabled = false; btn.textContent = '连接';
   if (r.ok){
     if (!recent.includes(addr)){ recent.unshift(addr); recent = recent.slice(0, 8); localStorage.setItem('butler.recent', JSON.stringify(recent)); }
     renderRecent2();
-    toast('已连接 ' + addr + '；若对方弹出授权窗口，请在其屏幕上点「允许」', 'ok');
+    toast('已连接 ' + addr + (pairCode ? '（免弹窗）' : '；若对方弹出授权窗口，请在其屏幕上点「允许」'), 'ok');
     await refreshStatus();
     renderMasterGrid();
     startGrid();
   } else {
     let hint = r.msg || '未知错误';
-    if (/timeout/i.test(hint)) hint = '连接超时：确认与目标在同一 Wi-Fi、IP 端口正确、对方已开启网络 ADB（手机端装 Shizuku 后可一键开启，或电视盒子开「网络调试」）';
-    else if (/refused|closed/i.test(hint)) hint = '连接被拒绝：对方端口未开放网络 ADB';
+    if (/timeout/i.test(hint)) hint = '连接超时：确认与目标在同一 Wi-Fi、IP 端口正确、对方已开启网络 ADB（可让对方用配对码或 Shizuku 开启）';
+    else if (/refused|closed/i.test(hint)) hint = '连接被拒绝：对方 5555 端口未开放网络 ADB';
     errBox.textContent = hint;
     errBox.style.display = 'block';
   }
@@ -1122,6 +1159,52 @@ $('slaveAddr').addEventListener('click', ()=>{
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast('已复制：' + t, 'ok'));
 });
 
+/* ---------- 配对码 ---------- */
+const PAIR = () => (IS_NATIVE && window.Capacitor.Plugins.PairServer) || null;
+async function pairRefresh(){
+  const P = PAIR();
+  if (!P) return;
+  try {
+    const c = await P.getCode();
+    $('pairCodeDisplay').textContent = c.code || '------';
+  } catch(e){}
+}
+$('btnPairSet').addEventListener('click', async ()=>{
+  const P = PAIR(); if (!P) return;
+  const code = $('pairCodeInput').value.trim();
+  try {
+    const r = await P.setCode({code});
+    toast('配对码已设置：' + r.code, 'ok');
+    pairRefresh();
+  } catch(e){ toast(String(e && e.message || e), 'bad'); }
+});
+$('btnPairSrv').addEventListener('click', async ()=>{
+  const P = PAIR(); if (!P) return;
+  const b = $('btnPairSrv');
+  b.disabled = true; b.textContent = '开启中…';
+  try {
+    const s = await P.status();
+    if (s.running){
+      await P.stop();
+      b.textContent = '开启配对服务';
+      toast('配对服务已关闭', 'ok');
+      $('pairHint').textContent = '控制端输入此配对码即可免弹窗直连。未开启时按原方式连接（首连会弹「允许调试」）。';
+    } else {
+      await P.start();
+      b.textContent = '关闭配对服务';
+      toast('配对服务已开启（端口 ' + (s.port || 55666) + '）', 'ok');
+      $('pairHint').textContent = '配对服务已开启：控制端填入本机 IP:5555 再输入配对码，即可免弹窗直连。';
+    }
+  } catch(e){ toast(String(e && e.message || e), 'bad'); }
+  b.disabled = false;
+});
+async function pairInit(){
+  const P = PAIR();
+  if (!P) return;
+  try { const s = await P.status(); if (s.running) $('btnPairSrv').textContent = '关闭配对服务'; } catch(e){}
+  pairRefresh();
+}
+
 async function await0(){
   setInterval(refreshStatus, 20000);
 }
@@ -1139,6 +1222,7 @@ async function await0(){
   if (!role){ showPane('roleView'); return; }
   enterRole(role, true);
 })();
+if (typeof pairInit === 'function') pairInit();
 </script>
 </body>
 </html>

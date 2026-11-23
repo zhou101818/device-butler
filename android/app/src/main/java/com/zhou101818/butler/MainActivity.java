@@ -18,6 +18,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AdbBridgePlugin.class);
         registerPlugin(ShizukuBridgePlugin.class);
+        registerPlugin(PairServerPlugin.class);
         registerPlugin(UIBridgePlugin.class);
         super.onCreate(savedInstanceState);
         // 把系统栏高度注入 WebView CSS 变量（不依赖 fitsSystemWindows 的最终表现）
