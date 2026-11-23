@@ -115,6 +115,7 @@ public class ShizukuBridgePlugin extends Plugin {
             if (userService != null) return userService;
             android.content.ComponentName cn = new android.content.ComponentName(getContext(), ShellUserService.class);
             Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(cn)
+                    .processNameSuffix("butler_svc")
                     .debuggable(false)
                     .version(1);
             final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
