@@ -69,6 +69,7 @@ public class ShizukuBridgePlugin extends Plugin {
 
     @PluginMethod
     public void status(PluginCall call) {
+        active = this; // 惰性注册静态通道（供 PairServerPlugin 复用）
         JSObject ret = new JSObject();
         ret.put("installed", managerInstalled());
         ret.put("ping", ping());
@@ -81,6 +82,7 @@ public class ShizukuBridgePlugin extends Plugin {
 
     @PluginMethod
     public void requestPermission(final PluginCall call) {
+        active = this;
         if (!managerInstalled()) { call.reject("未安装 Shizuku 管理器，请先到 shizuku.rikka.app 下载安装"); return; }
         if (!ping()) { call.reject("Shizuku 服务未运行：请打开 Shizuku 应用，按引导用「无线调试」或 root 启动服务"); return; }
         if (granted()) { call.resolve(); return; }
@@ -150,11 +152,6 @@ public class ShizukuBridgePlugin extends Plugin {
     // ---- 静态 shell 通道（供 PairServerPlugin 复用同一 UserService）----
     private static volatile ShizukuBridgePlugin active = null;
 
-    @Override
-    protected void handleOnActivate() {
-        active = this;
-    }
-
     public static void probeShell() throws Exception {
         String out = shellExec("echo ok");
         if (out == null || !out.contains("ok")) throw new IOException("shell 通道无响应");
@@ -162,12 +159,13 @@ public class ShizukuBridgePlugin extends Plugin {
 
     public static String shellExec(String cmd) throws Exception {
         ShizukuBridgePlugin p = active;
-        if (p == null) throw new IOException("插件未激活");
+        if (p == null) throw new IOException("插件未激活：请先打开被控端页面触发一次检测");
         return p.runShizukuCmd(cmd);
     }
 
     @PluginMethod
     public void enableNetworkAdb(final PluginCall call) {
+        active = this;
         try {
             if (!managerInstalled()) { call.reject("未安装 Shizuku 管理器"); return; }
             if (!ping()) { call.reject("Shizuku 服务未运行：请先在 Shizuku 应用中启动服务"); return; }
