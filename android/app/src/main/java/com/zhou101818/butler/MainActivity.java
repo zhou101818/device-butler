@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AdbBridgePlugin.class);
+        registerPlugin(ShizukuBridgePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
