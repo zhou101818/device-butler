@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""设备管家 v1 宿主服务：本地 HTTP API + adb.exe 封装（仅监听 127.0.0.1）"""
+"""设备管家 v2 宿主服务：多设备管理 + 本地 HTTP API + adb.exe 封装（仅监听 127.0.0.1）"""
 import json
 import os
 import re
@@ -16,21 +16,19 @@ DOCS = os.path.join(ROOT, "..", "docs")
 ADB = os.path.join(ROOT, "bin", "adb.exe")
 PORT = 8970
 
-STATE = {"serial": "", "props": {}}
+MANAGED = {}  # serial -> {"props": {...}}
 LOCK = threading.Lock()
 
 
-def run_adb(args, timeout=25, raw=False):
-    """执行 adb 命令；有设备时自动带 -s"""
+def run_adb(args, serial=None, timeout=25, raw=False):
     cmd = [ADB]
-    s = STATE.get("serial")
-    if s and args and args[0] not in ("connect", "disconnect", "devices", "start-server", "kill-server"):
-        cmd += ["-s", s]
+    if serial and args and args[0] not in ("connect", "disconnect", "devices", "start-server", "kill-server"):
+        cmd += ["-s", serial]
     cmd += list(args)
     try:
         p = subprocess.run(cmd, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return 1, "timeout", ""
+        return 1, "timeout", "" if not raw else b""
     out = p.stdout
     if isinstance(out, bytes):
         try:
@@ -56,10 +54,8 @@ def parse_devices():
     return result
 
 
-def pull_props():
+def pull_props(serial):
     props = {}
-    if not STATE["serial"]:
-        return props
     keys = {
         "model": "ro.product.model",
         "brand": "ro.product.brand",
@@ -67,16 +63,25 @@ def pull_props():
         "sdk": "ro.build.version.sdk",
     }
     for k, prop in keys.items():
-        _, out, _ = run_adb(["shell", "getprop", prop], timeout=10)
+        _, out, _ = run_adb(["shell", "getprop", prop], serial=serial, timeout=10)
         props[k] = (out or "").strip()
-    _, res, _ = run_adb(["shell", "wm", "size"], timeout=10)
+    _, res, _ = run_adb(["shell", "wm", "size"], serial=serial, timeout=10)
     m = re.search(r"(\d+x\d+)", res or "")
     props["resolution"] = m.group(1) if m else ""
-    _, bat, _ = run_adb(["shell", "dumpsys", "battery"], timeout=10)
+    _, bat, _ = run_adb(["shell", "dumpsys", "battery"], serial=serial, timeout=10)
     m = re.search(r"level:\s*(\d+)", bat or "")
     props["battery"] = (m.group(1) + "%") if m else ""
-    STATE["props"] = props
+    with LOCK:
+        if serial in MANAGED:
+            MANAGED[serial]["props"] = props
+            MANAGED[serial]["online"] = True
     return props
+
+
+def require_serial(serial):
+    if serial and serial in parse_devices():
+        return True
+    return False
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -85,7 +90,6 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-    # ---------- helpers ----------
     def send_json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
@@ -118,7 +122,6 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return self.rfile.read(n) if n > 0 else b""
 
-    # ---------- routes ----------
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -134,40 +137,53 @@ class Handler(BaseHTTPRequestHandler):
             return
         if u.path == "/api/status":
             with LOCK:
-                devices = parse_devices()
-                serial = STATE.get("serial")
-                if serial and serial not in devices:
-                    STATE["serial"] = ""
-                    STATE["props"] = {}
-                self.send_json({"ok": True, "connected": bool(STATE["serial"]), "serial": STATE["serial"], "devices": devices, "props": STATE["props"]})
+                online = parse_devices()
+                for s in list(MANAGED.keys()):
+                    MANAGED[s]["online"] = s in online
+                devices = []
+                for s in online:
+                    if s not in MANAGED:
+                        MANAGED[s] = {"props": {}, "online": True}
+                    entry = MANAGED[s]
+                    devices.append({
+                        "serial": s,
+                        "online": s in online,
+                        "props": entry.get("props", {}),
+                    })
+                self.send_json({"ok": True, "devices": devices})
             return
         if u.path == "/api/screenshot":
-            if not STATE["serial"]:
-                self.send_json({"ok": False, "msg": "未连接设备"}, 503)
+            q = parse_qs(u.query)
+            serial = unquote((q.get("serial", [""])[0]) or "").strip()
+            if not require_serial(serial):
+                self.send_json({"ok": False, "msg": "设备不在线"}, 503)
                 return
-            code, data, _ = run_adb(["exec-out", "screencap", "-p"], timeout=15, raw=True)
+            code, data, _ = run_adb(["exec-out", "screencap", "-p"], serial=serial, timeout=15, raw=True)
             if code == 0 and isinstance(data, bytes) and data[:8].startswith(b"\x89PNG"):
                 self.send_bytes(data, "image/png")
             else:
                 self.send_json({"ok": False, "msg": "截图失败"}, 500)
             return
         if u.path == "/api/apps":
-            if not STATE["serial"]:
-                self.send_json({"ok": False, "msg": "未连接设备"}, 503)
+            q = parse_qs(u.query)
+            serial = unquote((q.get("serial", [""])[0]) or "").strip()
+            if not require_serial(serial):
+                self.send_json({"ok": False, "msg": "设备不在线"}, 503)
                 return
-            _, out, _ = run_adb(["shell", "pm", "list", "packages", "-3"], timeout=20)
+            _, out, _ = run_adb(["shell", "pm", "list", "packages", "-3"], serial=serial, timeout=20)
             pkgs = [l.replace("package:", "").strip() for l in (out or "").splitlines() if l.startswith("package:")]
             self.send_json({"ok": True, "apps": pkgs})
             return
         if u.path == "/api/pull":
             q = parse_qs(u.query)
+            serial = unquote((q.get("serial", [""])[0]) or "").strip()
             path = unquote((q.get("path", [""])[0]) or "").strip()
-            if not STATE["serial"] or not path:
-                self.send_json({"ok": False, "msg": "未连接或路径为空"}, 400)
+            if not require_serial(serial) or not path:
+                self.send_json({"ok": False, "msg": "设备不在线或路径为空"}, 400)
                 return
             os.makedirs(os.path.join(ROOT, "tmp"), exist_ok=True)
             tmp = os.path.join(ROOT, "tmp", "pull_%d" % int(time.time() * 1000))
-            code, out, _ = run_adb(["pull", path, tmp], timeout=120)
+            code, out, _ = run_adb(["pull", path, tmp], serial=serial, timeout=120)
             if code == 0 and os.path.exists(tmp):
                 data = open(tmp, "rb").read()
                 os.remove(tmp)
@@ -187,84 +203,91 @@ class Handler(BaseHTTPRequestHandler):
                 return
             run_adb(["start-server"], timeout=15)
             code, out, _ = run_adb(["connect", addr], timeout=20)
-            ok = "connected" in (out or "") or "already" in (out or "")
+            ok = ("connected" in (out or "")) or ("already" in (out or ""))
             if ok:
                 with LOCK:
-                    STATE["serial"] = addr
-                    STATE["props"] = {}
-                    pull_props()
+                    if addr not in MANAGED:
+                        MANAGED[addr] = {"props": {}, "online": True}
+                    threading.Thread(target=pull_props, args=(addr,), daemon=True).start()
             self.send_json({"ok": ok, "msg": (out or "").strip()[:200]})
             return
         if u.path == "/api/disconnect":
+            body = self.body_json()
+            serial = (body.get("serial") or "").strip()
+            if not serial:
+                self.send_json({"ok": False, "msg": "缺少 serial"})
+                return
             with LOCK:
-                s = STATE["serial"]
-                STATE["serial"] = ""
-                STATE["props"] = {}
-            if s:
-                run_adb(["disconnect", s], timeout=10)
+                MANAGED.pop(serial, None)
+            if ":" in serial:
+                run_adb(["disconnect", serial], timeout=10)
             self.send_json({"ok": True})
             return
         if u.path == "/api/refresh":
-            with LOCK:
-                pull_props()
-                self.send_json({"ok": True, "props": STATE["props"]})
+            body = self.body_json()
+            serial = (body.get("serial") or "").strip()
+            if not require_serial(serial):
+                self.send_json({"ok": False, "msg": "设备不在线"}, 503)
+                return
+            props = pull_props(serial)
+            self.send_json({"ok": True, "props": props})
             return
-        if not STATE["serial"]:
-            self.send_json({"ok": False, "msg": "未连接设备"}, 503)
+        body = self.body_json() if self.headers.get("Content-Type", "").startswith("application/json") else {}
+        serial = (body.get("serial") or "").strip()
+        if not require_serial(serial):
+            self.send_json({"ok": False, "msg": "设备不在线"}, 503)
             return
         if u.path == "/api/tap":
-            b = self.body_json()
-            run_adb(["shell", "input", "tap", str(int(b.get("x", 0))), str(int(b.get("y", 0)))], timeout=10)
+            run_adb(["shell", "input", "tap", str(int(body.get("x", 0))), str(int(body.get("y", 0)))], serial=serial, timeout=10)
             self.send_json({"ok": True})
             return
         if u.path == "/api/key":
-            b = self.body_json()
-            keys = {"home": "3", "back": "4", "menu": "82", "volup": "24", "voldown": "25", "power": "26", "recents": "187", "wake": "224", "sleep": "223"}
-            code = keys.get(b.get("key", ""), b.get("key", ""))
-            run_adb(["shell", "input", "keyevent", str(code)], timeout=10)
+            keys = {"home": "3", "back": "4", "menu": "82", "volup": "24", "voldown": "25", "power": "26", "recents": "187", "wake": "224", "sleep": "223", "up": "19", "down": "20", "left": "21", "right": "22", "confirm": "23"}
+            code = keys.get(body.get("key", ""), body.get("key", ""))
+            run_adb(["shell", "input", "keyevent", str(code)], serial=serial, timeout=10)
             self.send_json({"ok": True})
             return
         if u.path == "/api/swipe":
-            b = self.body_json()
-            run_adb(["shell", "input", "swipe", str(int(b.get("x1", 0))), str(int(b.get("y1", 0))), str(int(b.get("x2", 0))), str(int(b.get("y2", 0))), str(int(b.get("dur", 300)))], timeout=10)
+            run_adb(["shell", "input", "swipe", str(int(body.get("x1", 0))), str(int(body.get("y1", 0))), str(int(body.get("x2", 0))), str(int(body.get("y2", 0))), str(int(body.get("dur", 300)))], serial=serial, timeout=10)
             self.send_json({"ok": True})
             return
         if u.path == "/api/text":
-            b = self.body_json()
-            t = (b.get("text") or "")
+            t = (body.get("text") or "")
             if not t:
                 self.send_json({"ok": False, "msg": "空文本"})
                 return
             t = t.replace(" ", "%s").replace("&", "\\&").replace("<", "\\<").replace(">", "\\>").replace("|", "\\|").replace("(", "\\(").replace(")", "\\)").replace(";", "\\;").replace("'", "\\'").replace('"', '\\"')
-            run_adb(["shell", "input", "text", t], timeout=10)
+            run_adb(["shell", "input", "text", t], serial=serial, timeout=10)
             self.send_json({"ok": True})
             return
         if u.path == "/api/uninstall":
-            b = self.body_json()
-            pkg = (b.get("pkg") or "").strip()
+            pkg = (body.get("pkg") or "").strip()
             if not re.match(r"^[\w.]+$", pkg):
                 self.send_json({"ok": False, "msg": "包名不合法"})
                 return
-            code, out, _ = run_adb(["shell", "pm", "uninstall", pkg], timeout=30)
+            code, out, _ = run_adb(["shell", "pm", "uninstall", pkg], serial=serial, timeout=30)
             self.send_json({"ok": "Success" in (out or ""), "msg": (out or "").strip()[:200]})
             return
         if u.path in ("/api/install", "/api/push"):
             name = unquote(self.headers.get("X-Filename") or "file.bin")
+            serial = self.headers.get("X-Serial") or serial
+            if not require_serial(serial):
+                self.send_json({"ok": False, "msg": "设备不在线"}, 503)
+                return
             data = self.body_raw()
             os.makedirs(os.path.join(ROOT, "tmp"), exist_ok=True)
             tmp = os.path.join(ROOT, "tmp", "up_" + str(int(time.time() * 1000)) + "_" + os.path.basename(name))
             open(tmp, "wb").write(data)
             if u.path == "/api/install":
-                code, out, _ = run_adb(["install", "-r", "-g", tmp], timeout=180)
+                code, out, _ = run_adb(["install", "-r", "-g", tmp], serial=serial, timeout=180)
                 os.remove(tmp)
                 self.send_json({"ok": "Success" in (out or ""), "msg": (out or "").strip()[:300]})
             else:
                 remote = self.headers.get("X-Remote") or "/sdcard/Download/"
                 remote = remote if remote.endswith("/") else remote + "/"
-                code, out, _ = run_adb(["push", tmp, remote + os.path.basename(name)], timeout=300)
+                code, out, _ = run_adb(["push", tmp, remote + os.path.basename(name)], serial=serial, timeout=300)
                 os.remove(tmp)
-                ok = code == 0
-                self.send_json({"ok": ok, "msg": (out or "").strip()[:300] or ("已推送到 " + remote + os.path.basename(name))})
+                self.send_json({"ok": code == 0, "msg": (out or "").strip()[:300] or ("已推送到 " + remote + os.path.basename(name))})
             return
         self.send_json({"ok": False, "msg": "not found"}, 404)
 
