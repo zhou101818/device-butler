@@ -58,7 +58,62 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .rolecard .rc-go{margin-top:12px;color:var(--amber);font-size:12px;font-weight:600}
 .rolecard.slave .rc-go{color:var(--ok)}
 .role-switch{margin-top:22px;color:var(--ink2);font-size:11.5px;text-decoration:underline;cursor:pointer}
-/* ===== 网格总览 ===== */
+/* ===== 控制端页面 ===== */
+#masterView{flex:1;overflow:auto;padding:10px 16px calc(26px + var(--sab));display:none;flex-direction:column;align-items:center}
+#masterView.active{display:flex}
+.master-head{text-align:center;margin:6px 0 14px}
+.master-head h2{margin:0;font-size:17px;letter-spacing:2px}
+.master-head p{color:var(--ink2);font-size:11.5px;margin:3px 0 0}
+.masterpanel{width:100%;max-width:640px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.masterpanel h3{margin:0 0 8px;font-size:13.5px}
+.mgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.mgrid.cols1{grid-template-columns:1fr}
+.mgrid.cols3{grid-template-columns:repeat(3,1fr)}
+.mcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--panel2)}
+.mcard:hover{border-color:var(--amber-d)}
+.mcard .mshot{position:relative;background:#0B1526;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;
+  background-image:linear-gradient(rgba(31,111,235,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(31,111,235,.07) 1px,transparent 1px);
+  background-size:22px 22px}
+.mcard .mshot img{max-width:100%;max-height:100%}
+.mcard .mshot .mtag{position:absolute;left:6px;top:6px;background:rgba(11,21,38,.85);color:#7FB5FF;border-radius:16px;padding:1px 8px;font-size:10px;font-family:var(--mono);max-width:calc(100% - 60px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard .mshot .mwait{color:#7FB5FF;font-size:10.5px}
+.mcard .minfo{display:flex;align-items:center;gap:8px;padding:7px 10px}
+.mcard .minfo .mn{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard .minfo .mn small{display:block;color:var(--ink2);font-weight:400;font-size:10px;font-family:var(--mono)}
+.mcard .minfo .mctl{border:none;background:var(--amber);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer}
+.madd{border:1.5px dashed var(--line2);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2);font-size:12px;aspect-ratio:9/16}
+.madd:hover{border-color:var(--amber);color:var(--amber)}
+.mform{display:flex;gap:8px;flex-wrap:wrap}
+.mform input{flex:1;min-width:200px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);border-radius:9px;padding:8px 11px;font-family:var(--mono);font-size:12.5px}
+.mform input:focus{outline:2px solid #BFD3F0;border-color:var(--amber-d)}
+.mreclist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.role-switch-bar2{margin-top:12px;color:var(--ink2);font-size:11px;text-decoration:underline;cursor:pointer;text-align:center}
+/* ===== 被控端页面 ===== */
+#slaveView{flex:1;overflow:auto;padding:10px 16px calc(26px + var(--sab));display:none;flex-direction:column;align-items:center}
+#slaveView.active{display:flex}
+.slave-head{text-align:center;margin:6px 0 14px}
+.slave-head h2{margin:0;font-size:17px;letter-spacing:2px}
+.slave-head p{color:var(--ink2);font-size:11.5px;margin:3px 0 0}
+.slavepanel{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.slavepanel h3{margin:0 0 6px;font-size:13.5px}
+.step{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none;padding-bottom:4px}
+.step .no{width:22px;height:22px;border-radius:50%;background:var(--amber-soft);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex:none;margin-top:1px}
+.step.ok .no{background:#EAF6EF;color:var(--ok)}
+.step .bd{flex:1;min-width:0}
+.step .bd .t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.step .bd .t .st{font-size:10.5px;font-weight:400;color:var(--ink2);white-space:nowrap}
+.step .bd .t .st.ok{color:var(--ok)}
+.step .bd .t .st.bad{color:var(--bad)}
+.step .bd .d{color:var(--ink2);font-size:11.5px;line-height:1.7;margin-top:2px}
+.step .bd .d .mono{font-family:var(--mono);color:var(--amber-d);background:var(--amber-soft);border-radius:4px;padding:0 5px}
+.step .act{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+.step .act .btn{padding:5px 10px;font-size:11.5px}
+.addrbar{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;text-align:center}
+.addrbar .lab{font-size:10.5px;color:var(--ink2);letter-spacing:2px;margin-bottom:4px}
+.addrbar .val{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--amber-d);cursor:pointer}
+.role-switch-bar{margin-top:12px;color:var(--ink2);font-size:11px;text-decoration:underline;cursor:pointer}
+/* ===== 网格总览（旧视图） ===== */
 #gridView{flex:1;overflow:auto;padding:14px 16px 24px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .grid.cols1{grid-template-columns:minmax(0,520px);justify-content:center}
@@ -298,6 +353,30 @@ input[type=range]{accent-color:var(--amber)}
   <div class="role-switch-bar" id="switchToMaster">切换为控制端</div>
 </div>
 
+<div id="masterView">
+  <div class="master-head">
+    <h2>控制端</h2>
+    <p>添加并管理局域网内的设备 · 支持多台同时连接</p>
+  </div>
+
+  <div class="masterpanel">
+    <h3>我的设备 <span style="font-weight:400;color:var(--ink2);font-size:11px" id="mCount"></span></h3>
+    <div class="mgrid" id="mgrid"></div>
+  </div>
+
+  <div class="masterpanel">
+    <h3>添加设备</h3>
+    <div class="mform">
+      <input id="addrInput2" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">
+      <button class="btn pri" id="btnDoConnect2">连接</button>
+    </div>
+    <div id="addrErr2" style="display:none;color:#B91C1C;background:#FCE8E8;border:1px solid #F3B9B9;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.8;margin-top:8px"></div>
+    <div class="mreclist" id="recentBox2"></div>
+  </div>
+
+  <div class="role-switch-bar2" id="switchToSlave">切换为被控端</div>
+</div>
+
 <main id="gridView" class="hidden">
   <div class="grid cols2" id="grid"></div>
   <div class="addcard" id="addCard" data-add style="margin:14px auto 0;max-width:420px;min-height:120px">
@@ -511,6 +590,7 @@ async function refreshStatus(){
   if (key !== lastSerialKey){
     lastSerialKey = key;
     renderGrid();
+    if (typeof renderMasterGrid === 'function') renderMasterGrid();
   }
   if (curSerial){
     const cur = devices.find(d=>d.serial === curSerial);
@@ -848,39 +928,96 @@ $('btnBack').addEventListener('click', leaveCtl);
 /* ---------- 角色与页面切换 ---------- */
 let role = localStorage.getItem('butler.role') || '';
 function showPane(id){
-  ['roleView','gridView','slaveView'].forEach(p=> $(p).classList.toggle('active', p === id));
+  ['roleView','masterView','slaveView'].forEach(p=> $(p).classList.toggle('active', p === id));
 }
 function enterRole(r, silent){
   role = r;
   localStorage.setItem('butler.role', r);
-  $('top').classList.toggle('hidden', false);
-  $('btnSwitchRole').style.display = r === 'slave' ? 'none' : '';
+  $('top').classList.toggle('hidden', true);
   if (r === 'slave'){
     showPane('slaveView');
     if (!silent) toast('已进入被控端：按步骤开启后，把地址告诉控制端', 'ok');
     slaveRefresh();
   } else {
-    showPane('gridView');
-    stopGrid();
-    refreshStatus().then(()=> startGrid());
+    showPane('masterView');
+    refreshStatus().then(()=> { renderMasterGrid(); startGrid(); });
+    renderRecent2();
     if (!silent) toast('已进入控制端：添加设备开始连接', 'ok');
   }
 }
+/* 控制端页：设备宫格 + 连接表单 */
+function renderMasterGrid(){
+  const box = $('mgrid');
+  if (!box) return;
+  $('mCount').textContent = devices.length ? ('· ' + devices.length + ' 台') : '';
+  let html = '';
+  for (const d of devices){
+    const p = d.props || {};
+    const name = p.model || d.serial;
+    html += '<div class="mcard" data-mopen="' + d.serial + '">'
+      + '<div class="mshot">'
+      + '<img data-shot="' + d.serial + '" alt="">'
+      + '<span class="mtag">' + esc(name) + '</span>'
+      + '<div class="mwait" data-nolive="' + d.serial + '">等待画面…</div>'
+      + '</div>'
+      + '<div class="minfo"><div class="mn">' + esc(name) + '<small>' + esc(d.serial) + (p.battery ? ' · ' + p.battery : '') + '</small></div>'
+      + '<button class="mctl" data-mopen="' + d.serial + '">控制</button></div>'
+      + '</div>';
+  }
+  html += '<div class="madd" data-madd>＋ 添加设备</div>';
+  box.innerHTML = html;
+}
+function renderRecent2(){
+  const box = $('recentBox2');
+  if (!box) return;
+  if (!recent.length){ box.innerHTML = '<span style="color:var(--ink2);font-size:11px">暂无历史连接</span>'; return; }
+  box.innerHTML = recent.map(r => '<span class="rchip" data-addr="' + r + '">' + r + '</span>').join('');
+  box.querySelectorAll('.rchip').forEach(c=>c.addEventListener('click', ()=>{
+    $('addrInput2').value = c.dataset.addr;
+    doConnect2();
+  }));
+}
+async function doConnect2(){
+  const inp = $('addrInput2');
+  const addr = inp.value.trim();
+  const errBox = $('addrErr2');
+  errBox.style.display = 'none';
+  if (!addr){ errBox.textContent = '请输入 IP:端口'; errBox.style.display = 'block'; return; }
+  const btn = $('btnDoConnect2');
+  btn.disabled = true; btn.textContent = '连接中…';
+  const r = await api('/api/connect', {addr});
+  btn.disabled = false; btn.textContent = '连接';
+  if (r.ok){
+    if (!recent.includes(addr)){ recent.unshift(addr); recent = recent.slice(0, 8); localStorage.setItem('butler.recent', JSON.stringify(recent)); }
+    renderRecent2();
+    toast('已连接 ' + addr + '；若对方弹出授权窗口，请在其屏幕上点「允许」', 'ok');
+    await refreshStatus();
+    renderMasterGrid();
+    startGrid();
+  } else {
+    let hint = r.msg || '未知错误';
+    if (/timeout/i.test(hint)) hint = '连接超时：确认与目标在同一 Wi-Fi、IP 端口正确、对方已开启网络 ADB（手机端装 Shizuku 后可一键开启，或电视盒子开「网络调试」）';
+    else if (/refused|closed/i.test(hint)) hint = '连接被拒绝：对方端口未开放网络 ADB';
+    errBox.textContent = hint;
+    errBox.style.display = 'block';
+  }
+}
+$('btnDoConnect2').addEventListener('click', doConnect2);
+$('addrInput2').addEventListener('keydown', e=>{ if (e.key === 'Enter') doConnect2(); });
+$('mgrid').addEventListener('click', e=>{
+  const add = e.target.closest('[data-madd]');
+  if (add){ $('addrInput2').focus(); $('addrInput2').scrollIntoView({behavior:'smooth', block:'center'}); return; }
+  const open = e.target.closest('[data-mopen]');
+  if (open){ openCtl(open.dataset.mopen); }
+});
 $('pickMaster').addEventListener('click', ()=> enterRole('master'));
 $('pickSlave').addEventListener('click', ()=> enterRole('slave'));
-$('btnSwitchRole').addEventListener('click', ()=>{
-  localStorage.removeItem('butler.role');
-  role = '';
-  $('top').classList.add('hidden');
-  showPane('roleView');
-});
 $('switchToMaster').addEventListener('click', ()=> enterRole('master'));
+$('switchToSlave').addEventListener('click', ()=> enterRole('slave'));
 $('btnAdd').addEventListener('click', ()=>{
   if (role === 'slave'){ enterRole('master'); return; }
-  const f = $('addFormCard');
-  if (f) f.scrollIntoView({behavior:'smooth', block:'center'});
-  const inp = $('addrInput');
-  if (inp) inp.focus();
+  const inp = $('addrInput2');
+  if (inp){ inp.scrollIntoView({behavior:'smooth', block:'center'}); inp.focus(); }
 });
 
 /* ---------- 被控端页面 ---------- */
@@ -949,9 +1086,7 @@ $('slaveAddr').addEventListener('click', ()=>{
 });
 
 async function await0(){
-  refreshStatus().then(()=> startGrid());
   setInterval(refreshStatus, 20000);
-  bindAddCards();
 }
 
 /* init */
