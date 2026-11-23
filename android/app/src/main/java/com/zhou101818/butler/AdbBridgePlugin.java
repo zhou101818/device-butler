@@ -318,8 +318,6 @@ public class AdbBridgePlugin extends Plugin {
                 call.resolve(ret);
             } catch (IOException e) {
                 call.reject("推送失败：" + String.valueOf(e.getMessage()));
-            } finally {
-                f.delete();
             }
         } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
     }
