@@ -1,0 +1,11 @@
+{
+  "appId": "com.zhou101818.butler",
+  "appName": "设备管家",
+  "webDir": "docs",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

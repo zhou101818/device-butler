@@ -1,0 +1,13 @@
+{
+  "name": "device-butler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "设备管家：控制安卓设备的本地控制台",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

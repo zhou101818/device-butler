@@ -179,7 +179,7 @@ input[type=range]{accent-color:var(--amber)}
     <div class="sect">
       <div class="sect-t">设备信息</div>
       <div class="devcard" id="devcard">
-        <p class="empty-hint" id="devEmpty">尚未连接设备。连接成功后，这里会显示型号、系统版本、分辨率与电量。</p>
+        <p class="empty-hint" id="connHint">在手机上打开「开发者选项 → 无线调试」，点「使用配对码配对设备」或直接开启端口。把显示的 IP:端口 填到上方地址栏后连接。<br>首次配对请在电脑命令行执行：<br><span style="font-family:var(--mono)">adb pair IP:配对端口 配对码</span></p>
       </div>
       <div style="margin-top:8px;display:flex;gap:8px">
         <button class="btn" id="btnRefresh"><svg class="ic"><use href="#i-refresh"/></svg>刷新信息</button>
@@ -271,6 +271,14 @@ input[type=range]{accent-color:var(--amber)}
 
 <script>
 const $ = id => document.getElementById(id);
+const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const ADB = () => (IS_NATIVE && window.Capacitor.Plugins.AdbBridge) || null;
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
 let connected = false, polling = false, pollTimer = null, pollMs = 1000, busy = false;
 let lastFrameAt = 0, frameCount = 0, fpsTimer = null;
 
@@ -284,6 +292,24 @@ function toast(msg, cls){
 }
 
 async function api(path, body, raw){
+  const B = ADB();
+  if (B){
+    const a = body || {};
+    try {
+      switch(path){
+        case '/api/status': case '/api/refresh': return await B.status();
+        case '/api/connect': await B.connect({addr: a.addr}); return {ok:true};
+        case '/api/disconnect': await B.disconnect({}); return {ok:true};
+        case '/api/tap': await B.tap({x: a.x, y: a.y}); return {ok:true};
+        case '/api/key': await B.key({key: a.key}); return {ok:true};
+        case '/api/swipe': await B.swipe({x1:a.x1,y1:a.y1,x2:a.x2,y2:a.y2,dur:a.dur}); return {ok:true};
+        case '/api/text': await B.text({text: a.text}); return {ok:true};
+        case '/api/apps': { const r = await B.apps(); return {ok:true, apps: r.apps || []}; }
+        case '/api/uninstall': await B.uninstall({pkg: a.pkg}); return {ok:true};
+      }
+      return {ok:false, msg:'未知接口'};
+    } catch(e){ return {ok:false, msg: String(e && e.message || e)}; }
+  }
   const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)} : {};
   const r = await fetch(path, opt);
   if (raw) return r;
@@ -299,6 +325,11 @@ async function refreshStatus(){
   $('viewport').className = connected ? '' : 'disconnected';
   renderDev(s.props || {});
   return s;
+}
+function switchTo(paneId){
+  if (innerWidth > 960) return;
+  const t = document.querySelector('.tt[data-pane="' + paneId + '"]');
+  if (t) t.click();
 }
 
 function renderDev(p){
@@ -325,7 +356,11 @@ $('btnConnect').addEventListener('click', async ()=>{
   btn.disabled = true; btn.textContent = '连接中…';
   const r = await api('/api/connect', {addr});
   btn.disabled = false; btn.innerHTML = '<svg class="ic"><use href="#i-plug"/></svg>连接';
-  if (r.ok){ toast('已连接 ' + addr, 'ok'); await refreshStatus(); startPoll(); }
+  if (r.ok){
+    localStorage.setItem('butler.addr', addr);
+    toast('已连接 ' + addr, 'ok');
+    await refreshStatus(); startPoll(); switchTo('colC');
+  }
   else toast('连接失败：' + (r.msg || '未知错误') + '；首次使用需先配对（见左栏说明）', 'bad');
 });
 $('btnDisconnect').addEventListener('click', async ()=>{
@@ -360,17 +395,29 @@ async function tick(){
   if (!polling || !connected || inflight) return;
   inflight = true;
   try{
-    const r = await fetch('/api/screenshot', {cache:'no-store'});
-    if (r.ok){
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const img = $('shot');
-      if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
-      img.src = url;
-      frameCount++;
-      const now = Date.now();
-      if (lastFrameAt) $('osdFps').textContent = Math.round(1000/(now-lastFrameAt)) + ' fps';
-      lastFrameAt = now;
+    if (IS_NATIVE){
+      const r = await ADB().screenshot();
+      if (r && r.b64){
+        const img = $('shot');
+        img.src = 'data:image/png;base64,' + r.b64;
+        frameCount++;
+        const now = Date.now();
+        if (lastFrameAt) $('osdFps').textContent = Math.round(1000/(now-lastFrameAt)) + ' fps';
+        lastFrameAt = now;
+      }
+    } else {
+      const r = await fetch('/api/screenshot', {cache:'no-store'});
+      if (r.ok){
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const img = $('shot');
+        if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+        img.src = url;
+        frameCount++;
+        const now = Date.now();
+        if (lastFrameAt) $('osdFps').textContent = Math.round(1000/(now-lastFrameAt)) + ' fps';
+        lastFrameAt = now;
+      }
     }
   }catch(e){}
   inflight = false;
@@ -459,10 +506,16 @@ $('apkPick').addEventListener('change', async e=>{
   if (!f) return;
   toast('正在安装 ' + f.name + ' …');
   const buf = await f.arrayBuffer();
-  const r = await fetch('/api/install', {method:'POST', headers:{'X-Filename': encodeURIComponent(f.name)}, body: buf});
-  const j = await r.json();
-  if (j.ok) toast('安装成功：' + f.name, 'ok');
-  else toast('安装失败：' + (j.msg||'').slice(0,120), 'bad');
+  if (IS_NATIVE){
+    const b64 = btoa(new Uint8Array(buf).reduce((s,b)=>s+String.fromCharCode(b), ''));
+    try { await ADB().install({name: f.name, data: b64}); toast('安装成功：' + f.name, 'ok'); }
+    catch(err){ toast('安装失败：' + String(err && err.message || err).slice(0,120), 'bad'); }
+  } else {
+    const r = await fetch('/api/install', {method:'POST', headers:{'X-Filename': encodeURIComponent(f.name)}, body: buf});
+    const j = await r.json();
+    if (j.ok) toast('安装成功：' + f.name, 'ok');
+    else toast('安装失败：' + (j.msg||'').slice(0,120), 'bad');
+  }
   e.target.value = '';
 });
 function requireConn(){ if (!connected){ toast('未连接设备', 'bad'); return false; } return true; }
@@ -474,17 +527,36 @@ $('pushPick').addEventListener('change', async e=>{
   if (!f) return;
   toast('正在推送 ' + f.name + ' …');
   const buf = await f.arrayBuffer();
-  const r = await fetch('/api/push', {method:'POST', headers:{'X-Filename': encodeURIComponent(f.name), 'X-Remote':'/sdcard/Download/'}, body: buf});
-  const j = await r.json();
-  if (j.ok) toast('已推送到 /sdcard/Download/' + f.name, 'ok');
-  else toast('推送失败：' + (j.msg||''), 'bad');
+  if (IS_NATIVE){
+    const b64 = btoa(new Uint8Array(buf).reduce((s,b)=>s+String.fromCharCode(b), ''));
+    try { await ADB().push({name: f.name, data: b64}); toast('已推送到 /sdcard/Download/' + f.name, 'ok'); }
+    catch(err){ toast('推送失败：' + String(err && err.message || err).slice(0,120), 'bad'); }
+  } else {
+    const r = await fetch('/api/push', {method:'POST', headers:{'X-Filename': encodeURIComponent(f.name), 'X-Remote':'/sdcard/Download/'}, body: buf});
+    const j = await r.json();
+    if (j.ok) toast('已推送到 /sdcard/Download/' + f.name, 'ok');
+    else toast('推送失败：' + (j.msg||''), 'bad');
+  }
   e.target.value = '';
 });
-$('btnPull').addEventListener('click', ()=>{
+$('btnPull').addEventListener('click', async ()=>{
   if (!requireConn()) return;
   const p = $('pullPath').value.trim();
   if (!p){ toast('请输入设备上的文件路径', 'bad'); return; }
-  window.open('/api/pull?path=' + encodeURIComponent(p), '_self');
+  toast('正在拉取 ' + p + ' …');
+  try {
+    if (IS_NATIVE){
+      const r = await ADB().pull({path: p});
+      const blob = new Blob([b64ToBytes(r.b64)], {type:'application/octet-stream'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = r.name || 'file';
+      a.click();
+      toast('已拉取到下载目录', 'ok');
+    } else {
+      window.open('/api/pull?path=' + encodeURIComponent(p), '_self');
+    }
+  } catch(err){ toast('拉取失败：' + String(err && err.message || err), 'bad'); }
 });
 
 /* ---------- tab（窄屏） ---------- */
@@ -500,6 +572,11 @@ document.querySelectorAll('.tt').forEach(t=>{
 (async function(){
   if (innerWidth > 960){ /* 桌面三栏 */ }
   else { $('colC').classList.add('active'); }
+  if (IS_NATIVE){
+    document.getElementById('connHint').innerHTML = '安卓版通过内置 ADB 客户端直接连接目标设备的 <span style="font-family:var(--mono)">网络 ADB（5555）</span>。<br>电视盒子：设置里开启「网络调试/远程调试」即可直连；<br>手机：先用电脑执行 <span style="font-family:var(--mono)">adb tcpip 5555</span> 一次后即可直连。';
+  }
+  const saved = localStorage.getItem('butler.addr');
+  if (saved) $('addr').value = saved;
   await refreshStatus();
   setInterval(refreshStatus, 15000);
 })();
