@@ -308,9 +308,11 @@ public class AdbBridgePlugin extends Plugin {
             if (!remote.endsWith("/")) remote = remote + "/";
             String b64 = call.getString("data", "");
             byte[] data = Base64.decode(b64, Base64.NO_WRAP);
-            File f = writeTemp(name, data);
+            okio.Buffer buf = new okio.Buffer();
+            buf.write(data);
             try {
-                dadb.push(f, remote + name);
+                // mode 33188 = 0100644；用 Source 重载，避免 dadb 内部读取 unix 文件属性（Android 不支持）
+                dadb.push(buf, remote + name, 33188, System.currentTimeMillis());
                 JSObject ret = new JSObject();
                 ret.put("msg", "已推送到 " + remote + name);
                 call.resolve(ret);
