@@ -115,6 +115,32 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .addrbar .val{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--amber-d);cursor:pointer}
 .role-switch-bar{margin-top:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:100%;max-width:560px;padding:10px 0;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);font-size:13.5px;font-weight:700}
 .role-switch-bar:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+/* ===== 全屏控制页（云手机式） ===== */
+#liveView{position:fixed;inset:0;background:#0B1526;z-index:90;display:none;flex-direction:column}
+#liveView.active{display:flex}
+#liveStage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  background-image:linear-gradient(rgba(31,111,235,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(31,111,235,.06) 1px,transparent 1px);
+  background-size:34px 34px}
+#liveStage img{max-width:100%;max-height:100%;object-fit:contain}
+.live-top{position:absolute;top:calc(10px + var(--sat));left:10px;right:10px;display:flex;align-items:center;gap:8px;z-index:5;transition:opacity .25s}
+.live-chip{background:rgba(11,21,38,.72);border:1px solid rgba(127,181,255,.25);color:#CFE4FF;border-radius:20px;padding:5px 12px;font-size:12px;display:flex;align-items:center;gap:7px;backdrop-filter:blur(6px)}
+.live-chip .dot{width:7px;height:7px;border-radius:50%;background:#D85849;animation:blink 1.1s steps(1) infinite}
+.live-chip .fps{font-family:var(--mono);color:#7FB5FF}
+.live-top .lt-btn{border:none;background:rgba(11,21,38,.72);color:#CFE4FF;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
+.live-top .sp{flex:1}
+/* 悬浮工具条 */
+#liveDock{position:absolute;bottom:calc(12px + var(--sab));left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:6px;background:rgba(11,21,38,.78);border:1px solid rgba(127,181,255,.25);border-radius:16px;padding:8px 10px;backdrop-filter:blur(8px);transition:opacity .25s, transform .25s;max-width:94vw;flex-wrap:wrap;justify-content:center}
+#liveDock.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(14px)}
+.dockbtn{border:none;background:rgba(31,111,235,.16);color:#CFE4FF;border-radius:11px;min-width:46px;padding:7px 10px;font-size:11.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+.dockbtn:active{background:rgba(31,111,235,.4)}
+.dockbtn svg{width:16px;height:16px}
+/* 更多面板（键盘输入/设置） */
+#liveMore{position:absolute;bottom:calc(70px + var(--sab));left:50%;transform:translateX(-50%);z-index:6;background:rgba(11,21,38,.9);border:1px solid rgba(127,181,255,.3);border-radius:14px;padding:12px;display:none;width:min(400px,92vw)}
+#liveMore.show{display:block}
+#liveMore .lr{display:flex;gap:8px;margin-bottom:8px}
+#liveMore input[type=text]{flex:1;border:1px solid rgba(127,181,255,.3);background:rgba(0,0,0,.3);color:#E6F0FF;border-radius:9px;padding:8px 11px;font-size:13px}
+#liveMore .frow{display:flex;align-items:center;gap:10px;color:#9FB8DB;font-size:12px;margin-top:4px}
+#liveMore select{background:rgba(0,0,0,.3);color:#E6F0FF;border:1px solid rgba(127,181,255,.3);border-radius:8px;padding:5px 8px}
 /* ===== 网格总览（旧视图） ===== */
 #gridView{flex:1;overflow:auto;padding:14px 16px 24px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -419,6 +445,40 @@ input[type=range]{accent-color:var(--amber)}
     </div>
   </div>
 </main>
+
+<div id="liveView">
+  <div class="live-top" id="liveTop">
+    <button class="lt-btn" id="btnLiveBack" title="退出全屏"><svg class="ic"><use href="#i-back2"/></svg></button>
+    <span class="live-chip"><span class="dot"></span>LIVE<span class="fps" id="liveFps">-- fps</span></span>
+    <span class="live-chip" id="liveName" style="max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</span>
+    <span class="sp"></span>
+    <button class="lt-btn" id="btnLiveKeys" title="工具条" style="border-radius:12px;width:auto;padding:0 12px;font-size:12px">工具</button>
+  </div>
+  <div id="liveStage">
+    <img id="liveImg" alt="" draggable="false">
+  </div>
+  <div id="liveMore">
+    <div class="lr">
+      <input type="text" id="liveTextInput" placeholder="输入文字发送到设备" enterkeyhint="send">
+      <button class="btn pri" id="btnLiveSend">发送</button>
+    </div>
+    <div class="frow">刷新间隔 <input type="range" id="liveFpsSlider" min="3" max="30" value="10"> <b id="liveFpsLabel" style="font-family:var(--mono)">1.0s</b></div>
+  </div>
+  <div id="liveDock">
+    <button class="dockbtn" data-key="home"><svg><use href="#i-home"/></svg>主页</button>
+    <button class="dockbtn" data-key="back"><svg><use href="#i-back"/></svg>返回</button>
+    <button class="dockbtn" data-key="menu"><svg><use href="#i-menu"/></svg>菜单</button>
+    <button class="dockbtn" data-key="recents"><svg><use href="#i-apps"/></svg>任务</button>
+    <button class="dockbtn" data-key="volup"><svg><use href="#i-vol"/></svg>音量＋</button>
+    <button class="dockbtn" data-key="voldown"><svg><use href="#i-vol"/></svg>音量－</button>
+    <button class="dockbtn" data-key="up">▲</button>
+    <button class="dockbtn" data-key="left">◀</button>
+    <button class="dockbtn" data-key="right">▶</button>
+    <button class="dockbtn" data-key="down">▼</button>
+    <button class="dockbtn" data-key="confirm">OK</button>
+    <button class="dockbtn" id="btnLiveMore" style="background:rgba(232,90,73,.25)"><svg><use href="#i-list"/></svg>更多</button>
+  </div>
+</div>
 
 <div id="ctlView" class="hidden">
   <div class="ctl-top">
@@ -729,25 +789,114 @@ async function gridTick(){
   } catch(e){}
 }
 
-/* ---------- 控制会话 ---------- */
+/* ---------- 控制会话（手机：全屏云手机式 liveView；桌面仍走 ctlView） ---------- */
+let livePollMs = 1000, liveLastFrameAt = 0, liveInflight = false, liveHideTimer = null;
 function openCtl(serial){
   curSerial = serial;
   stopGrid();
-  $('gridView').classList.add('hidden');
-  $('ctlView').classList.remove('hidden');
-  const d = devices.find(x=>x.serial === serial) || {props:{}};
-  renderCtl(d);
-  if (innerWidth <= 960){ document.getElementById('colC').classList.add('active'); }
-  startCtl();
+  if (innerWidth <= 960){
+    // 手机：全屏 liveView
+    const d = devices.find(x=>x.serial === serial) || {props:{}};
+    const p = d.props || {};
+    $('liveName').textContent = (p.model || serial) + (p.battery ? ' · ' + p.battery : '');
+    $('liveView').classList.add('active');
+    $('liveFpsLabel').textContent = Math.round(livePollMs)/1000 + 's';
+    startLive();
+    wakeDock();
+  } else {
+    $('gridView').classList.add('hidden');
+    $('ctlView').classList.remove('hidden');
+    const d = devices.find(x=>x.serial === serial) || {props:{}};
+    renderCtl(d);
+    startCtl();
+  }
 }
 function leaveCtl(){
   curSerial = '';
   stopCtl();
+  stopLive();
+  $('liveView').classList.remove('active');
   $('ctlView').classList.add('hidden');
   $('gridView').classList.remove('hidden');
   renderGrid();
   startGrid();
 }
+/* 全屏轮询 */
+async function liveTick(){
+  if (!curSerial || liveInflight) return;
+  liveInflight = true;
+  try {
+    const r = await api('/api/screenshot', {serial: curSerial});
+    if (r.ok && r.b64){
+      $('liveImg').src = 'data:image/png;base64,' + r.b64;
+      const now = Date.now();
+      if (liveLastFrameAt) $('liveFps').textContent = Math.round(1000/(now-liveLastFrameAt)) + ' fps';
+      liveLastFrameAt = now;
+    } else if (r.ok && r.blob){
+      const url = URL.createObjectURL(r.blob);
+      const img = $('liveImg');
+      if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+      img.src = url;
+      const now = Date.now();
+      if (liveLastFrameAt) $('liveFps').textContent = Math.round(1000/(now-liveLastFrameAt)) + ' fps';
+      liveLastFrameAt = now;
+    }
+  } catch(e){}
+  liveInflight = false;
+}
+let liveTimer = null;
+function startLive(){
+  stopLive();
+  liveTick();
+  liveTimer = setInterval(liveTick, livePollMs);
+}
+function stopLive(){ clearInterval(liveTimer); liveTimer = null; }
+/* 工具条自动隐藏 */
+function wakeDock(){
+  const dock = $('liveDock'), top = $('liveTop');
+  dock.classList.remove('hide'); top.style.opacity = '1';
+  clearTimeout(liveHideTimer);
+  liveHideTimer = setTimeout(()=>{ dock.classList.add('hide'); top.style.opacity = '0.25'; }, 4000);
+}
+$('liveStage').addEventListener('click', async e=>{
+  wakeDock();
+  if (!curSerial) return;
+  const img = $('liveImg');
+  if (!img.naturalWidth) return;
+  const rect = img.getBoundingClientRect();
+  const x = Math.round((e.clientX - rect.left) / rect.width * img.naturalWidth);
+  const y = Math.round((e.clientY - rect.top) / rect.height * img.naturalHeight);
+  await api('/api/tap', {serial: curSerial, x, y});
+  setTimeout(liveTick, 120);
+});
+$('liveStage').addEventListener('mousemove', ()=>{ if (curSerial) wakeDock(); });
+$('btnLiveBack').addEventListener('click', leaveCtl);
+$('btnLiveKeys').addEventListener('click', ()=> wakeDock());
+$('btnLiveMore').addEventListener('click', ()=>{
+  $('liveMore').classList.toggle('show');
+  wakeDock();
+});
+$('btnLiveSend').addEventListener('click', async ()=>{
+  const t = $('liveTextInput').value;
+  if (!t || !curSerial) return;
+  const r = await api('/api/text', {serial: curSerial, text: t});
+  if (r.ok){ $('liveTextInput').value = ''; toast('已发送', 'ok'); setTimeout(liveTick, 150); }
+});
+$('liveTextInput').addEventListener('keydown', e=>{ if (e.key === 'Enter') $('btnLiveSend').click(); });
+$('liveFpsSlider').addEventListener('input', e=>{
+  const v = parseInt(e.target.value, 10);
+  livePollMs = v * 100;
+  $('liveFpsLabel').textContent = (v/10).toFixed(1) + 's';
+  if (liveTimer) startLive();
+});
+/* liveView 的 dock 按键复用 KEYMAP */
+document.querySelectorAll('#liveDock [data-key]').forEach(b=>{
+  b.addEventListener('click', async ()=>{
+    if (!curSerial) return;
+    await api('/api/key', {serial: curSerial, key: KEYMAP[b.dataset.key]});
+    setTimeout(liveTick, 150);
+  });
+});
 function renderCtl(d){
   const p = d.props || {};
   $('ctlName').textContent = p.model || d.serial;
@@ -1036,10 +1185,12 @@ async function doConnect2(){
   if (r.ok){
     if (!recent.includes(addr)){ recent.unshift(addr); recent = recent.slice(0, 8); localStorage.setItem('butler.recent', JSON.stringify(recent)); }
     renderRecent2();
-    toast('已连接 ' + addr + (pairCode ? '（免弹窗）' : '；若对方弹出授权窗口，请在其屏幕上点「允许」'), 'ok');
+    toast('已连接 ' + addr + (pairCode ? '（免弹窗）' : ''), 'ok');
     await refreshStatus();
     renderMasterGrid();
     startGrid();
+    // 手机端：直接进入全屏控制（云手机式体验）
+    setTimeout(()=>{ if (devices.some(d=>d.serial === addr)) openCtl(addr); }, 800);
   } else {
     let hint = r.msg || '未知错误';
     if (/timeout/i.test(hint)) hint = '连接超时：确认与目标在同一 Wi-Fi、IP 端口正确、对方已开启网络 ADB（可让对方用配对码或 Shizuku 开启）';

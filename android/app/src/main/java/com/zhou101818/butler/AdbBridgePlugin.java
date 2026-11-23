@@ -41,7 +41,16 @@ public class AdbBridgePlugin extends Plugin {
 
     private static final Map<String, Dadb> clients = new ConcurrentHashMap<>();
     private static final Map<String, JSObject> propsCache = new ConcurrentHashMap<>();
+    // 所有长任务跑在私有线程池：不占用 Capacitor 桥线程（否则一次卡顿会排队塞死后续所有 Promise）
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    /** 异步执行插件调用（彻底避免桥线程阻塞死锁） */
+    private void async(PluginCall call, Runnable body) {
+        executor.submit(() -> {
+            try { body.run(); }
+            catch (Throwable t) { try { call.reject(String.valueOf(t.getMessage())); } catch (Throwable ignored) {} }
+        });
+    }
 
     private File keyDir() {
         File d = new File(getContext().getFilesDir(), "adbkeys");
@@ -224,29 +233,33 @@ public class AdbBridgePlugin extends Plugin {
 
     @PluginMethod
     public void status(PluginCall call) {
-        JSArray arr = new JSArray();
-        for (String serial : clients.keySet()) {
-            JSObject o = new JSObject();
-            o.put("serial", serial);
-            JSObject p = propsCache.get(serial);
-            o.put("props", p != null ? p : new JSObject());
-            arr.put(o);
-        }
-        JSObject ret = new JSObject();
-        ret.put("devices", arr);
-        call.resolve(ret);
+        async(call, () -> {
+            JSArray arr = new JSArray();
+            for (String serial : clients.keySet()) {
+                JSObject o = new JSObject();
+                o.put("serial", serial);
+                JSObject p = propsCache.get(serial);
+                o.put("props", p != null ? p : new JSObject());
+                arr.put(o);
+            }
+            JSObject ret = new JSObject();
+            ret.put("devices", arr);
+            call.resolve(ret);
+        });
     }
 
     @PluginMethod
     public void refresh(PluginCall call) {
         String serial = call.getString("serial", "");
-        try {
-            requireClient(serial);
-            pullProps(serial);
-            JSObject ret = new JSObject();
-            ret.put("props", propsCache.get(serial));
-            call.resolve(ret);
-        } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        async(call, () -> {
+            try {
+                requireClient(serial);
+                pullProps(serial);
+                JSObject ret = new JSObject();
+                ret.put("props", propsCache.get(serial));
+                call.resolve(ret);
+            } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        });
     }
 
     private void requireClient(String serial) throws IOException {
@@ -255,46 +268,51 @@ public class AdbBridgePlugin extends Plugin {
         }
     }
 
-    /** 截图：优先 shell_v2 raw（二进制安全），不支持时降级为落盘 + pull */
+    /** 截图：优先 shell_v2 raw（二进制安全），不支持时降级为落盘 + pull；带总超时防线程悬挂 */
     @PluginMethod
     public void screenshot(PluginCall call) {
         String serial = call.getString("serial", "");
-        try {
-            Dadb d = client(serial);
-            byte[] png;
+        async(call, () -> {
+            Future<?> guard = executor.submit(() -> {});
             try {
-                AdbShellStream s = d.openShell("screencap -p");
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                while (true) {
-                    try {
-                        AdbShellPacket pkt = s.read();
-                        if (pkt instanceof AdbShellPacket.StdOut) {
-                            bos.write(((AdbShellPacket.StdOut) pkt).getPayload());
+                Dadb d = client(serial);
+                byte[] png;
+                try {
+                    long deadline = System.currentTimeMillis() + 15000;
+                    AdbShellStream s = d.openShell("screencap -p");
+                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                    while (System.currentTimeMillis() < deadline) {
+                        try {
+                            AdbShellPacket pkt = s.read();
+                            if (pkt instanceof AdbShellPacket.Exit) break;
+                            if (pkt instanceof AdbShellPacket.StdOut) {
+                                bos.write(((AdbShellPacket.StdOut) pkt).getPayload());
+                            }
+                        } catch (AdbStreamClosed closed) {
+                            break;
                         }
-                    } catch (AdbStreamClosed closed) {
-                        break;
                     }
+                    try { s.close(); } catch (Exception ignored) {}
+                    png = bos.toByteArray();
+                    if (png.length < 8 || png[0] != (byte) 0x89) throw new IOException("输出非 PNG");
+                } catch (IOException v2Fail) {
+                    String remote = "/data/local/tmp/.butler_shot_" + Math.abs(serial.hashCode()) + ".png";
+                    d.shell("screencap -p " + remote);
+                    File tmp = new File(getContext().getCacheDir(), "shot.png");
+                    d.pull(tmp, remote);
+                    d.shell("rm " + remote);
+                    png = readAll(tmp);
+                    tmp.delete();
                 }
-                s.close();
-                png = bos.toByteArray();
-                if (png.length < 8 || png[0] != (byte) 0x89) throw new IOException("输出非 PNG");
-            } catch (IOException v2Fail) {
-                String remote = "/data/local/tmp/.butler_shot_" + Math.abs(serial.hashCode()) + ".png";
-                d.shell("screencap -p " + remote);
-                File tmp = new File(getContext().getCacheDir(), "shot.png");
-                d.pull(tmp, remote);
-                d.shell("rm " + remote);
-                png = readAll(tmp);
-                tmp.delete();
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                ret.put("b64", Base64.encodeToString(png, Base64.NO_WRAP));
+                call.resolve(ret);
+            } catch (IOException | RuntimeException e) {
+                call.reject("截图失败：" + String.valueOf(e.getMessage()));
+                dropClient(serial);
             }
-            JSObject ret = new JSObject();
-            ret.put("ok", true);
-            ret.put("b64", Base64.encodeToString(png, Base64.NO_WRAP));
-            call.resolve(ret);
-        } catch (IOException e) {
-            call.reject("截图失败：" + String.valueOf(e.getMessage()));
-            dropClient(serial);
-        }
+        });
     }
 
     private byte[] readAll(File f) throws IOException {
