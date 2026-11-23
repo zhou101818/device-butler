@@ -251,7 +251,6 @@ input[type=range]{accent-color:var(--amber)}
 
 <div id="slaveView">
   <div class="slave-head">
-    <div class="mark"><svg><use href="#i-monitor"/></svg></div>
     <h2>被控端</h2>
     <p>把本机交给局域网内的设备管家控制 · 免 root</p>
   </div>
@@ -260,31 +259,35 @@ input[type=range]{accent-color:var(--amber)}
     <h3>准备步骤</h3>
     <div class="step" id="step1">
       <span class="no">1</span>
-      <div class="bd"><div class="t">安装 Shizuku</div><div class="d">被控需要它提供免 root 权限，从官网下载安装：<br><span class="mono">shizuku.rikka.app</span></div></div>
-      <span class="st" id="st1">检测中…</span>
+      <div class="bd">
+        <div class="t">安装 Shizuku <span class="st" id="st1">检测中…</span></div>
+        <div class="d">提供免 root 权限的独立应用（无法内嵌，需单独安装）</div>
+        <div class="act"><button class="btn pri" id="btnSzDownload2">下载 Shizuku</button><button class="btn" id="btnSzRefresh">重新检测</button></div>
+      </div>
     </div>
     <div class="step" id="step2">
       <span class="no">2</span>
-      <div class="bd"><div class="t">启动 Shizuku 服务</div><div class="d">打开 Shizuku → 选「通过无线调试启动」→ 按引导配对一次（需在同一局域网）</div></div>
-      <span class="st" id="st2">未运行</span>
+      <div class="bd">
+        <div class="t">启动 Shizuku 服务 <span class="st" id="st2">未运行</span></div>
+        <div class="d">打开 Shizuku → 「通过无线调试启动」→ 按引导配对一次</div>
+      </div>
     </div>
     <div class="step" id="step3">
       <span class="no">3</span>
-      <div class="bd"><div class="t">授予本应用权限</div><div class="d">Shizuku 服务运行后，授权设备管家使用</div></div>
-      <span class="st" id="st3">未授权</span>
+      <div class="bd">
+        <div class="t">授权设备管家 <span class="st" id="st3">未授权</span></div>
+        <div class="d">允许本应用调用 Shizuku</div>
+        <div class="act"><button class="btn" id="btnSzPerm2">授权</button></div>
+      </div>
     </div>
     <div class="step" id="step4">
       <span class="no">4</span>
-      <div class="bd"><div class="t">开启网络 ADB</div><div class="d">一键执行，开启后控制端即可连接本机</div></div>
-      <span class="st" id="st4">未开启</span>
+      <div class="bd">
+        <div class="t">开启网络 ADB <span class="st" id="st4">未开启</span></div>
+        <div class="d">开启后控制端即可连接本机</div>
+        <div class="act"><button class="btn pri" id="btnSzEnable2">开启网络 ADB (5555)</button></div>
+      </div>
     </div>
-    <div class="slavebtns">
-      <button class="btn" id="btnSzRefresh"><svg class="ic"><use href="#i-refresh"/></svg>重新检测</button>
-      <button class="btn pri" id="btnSzDownload2">下载 Shizuku</button>
-      <button class="btn" id="btnSzPerm2">授权设备管家</button>
-      <button class="btn pri" id="btnSzEnable2">开启网络 ADB (5555)</button>
-    </div>
-    <p class="hint" id="szHint2" style="text-align:center"></p>
   </div>
 
   <div class="addrbar">
@@ -851,6 +854,7 @@ function enterRole(r, silent){
   role = r;
   localStorage.setItem('butler.role', r);
   $('top').classList.toggle('hidden', false);
+  $('btnSwitchRole').style.display = r === 'slave' ? 'none' : '';
   if (r === 'slave'){
     showPane('slaveView');
     if (!silent) toast('已进入被控端：按步骤开启后，把地址告诉控制端', 'ok');
@@ -898,20 +902,15 @@ async function slaveRefresh(){
   try { s = await S.status(); } catch(e){}
   $('st1').textContent = s.installed ? '已安装' : '未安装';
   $('st1').className = 'st' + (s.installed ? ' ok' : ' bad');
+  $('step1').classList.toggle('ok', s.installed);
   $('st2').textContent = s.ping ? '运行中' : '未运行';
   $('st2').className = 'st' + (s.ping ? ' ok' : ' bad');
+  $('step2').classList.toggle('ok', s.ping);
   $('st3').textContent = s.granted ? '已授权' : '未授权';
   $('st3').className = 'st' + (s.granted ? ' ok' : ' bad');
-  if (s.granted){
-    $('st4').textContent = '可开启';
-    $('st4').className = 'st ok';
-  }
-  const hint = !s.installed ? '点「下载 Shizuku」安装后，回来点「重新检测」'
-    : !s.ping ? '打开 Shizuku 应用，选「通过无线调试启动」，完成后回来重新检测'
-    : !s.granted ? '点「授权设备管家」，在弹窗中允许'
-    : '一切就绪：点「开启网络 ADB」';
-  $('szHint2').textContent = hint;
-  // 地址
+  $('step3').classList.toggle('ok', s.granted);
+  $('st4').textContent = s.granted ? '可开启' : '需先完成步骤3';
+  $('st4').className = 'st' + (s.granted ? ' ok' : '');
   try {
     const ipr = await S.localIps();
     const ip = (ipr.ips || [])[0];
@@ -930,13 +929,14 @@ $('btnSzPerm2').addEventListener('click', async ()=>{
 });
 $('btnSzEnable2').addEventListener('click', async ()=>{
   const S = SZ(); if (!S) return;
-  try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); return; }
+  try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); slaveRefresh(); return; }
   const b = $('btnSzEnable2');
   b.disabled = true; b.textContent = '开启中…';
   try {
     const r = await S.enableNetworkAdb();
     if (r.ok){
       $('st4').textContent = '已开启'; $('st4').className = 'st ok';
+      $('step4').classList.add('ok');
       toast(r.msg + (r.persist ? '（重启后保持）' : '（重启后需重新开启）'), 'ok');
       slaveRefresh();
     } else toast(r.msg, 'bad');
