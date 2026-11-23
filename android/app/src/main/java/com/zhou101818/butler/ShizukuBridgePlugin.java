@@ -31,6 +31,15 @@ import rikka.shizuku.Shizuku;
 public class ShizukuBridgePlugin extends Plugin {
 
     private static final String[] SHIZUKU_PKGS = {"moe.shizuku.android", "rikka.shizuku"};
+    private static final int PERM_REQ_CODE = 9627;
+    private static final String ENABLE_CMD =
+            "settings put global adb_enabled 1; "
+            + "setprop persist.adb.tcp.port 5555; "
+            + "setprop service.adb.tcp.port 5555; "
+            + "stop adbd; sleep 1; start adbd; sleep 2; "
+            + "getprop service.adb.tcp.port";
+    private PluginCall pendingPermCall = null;
+    private final java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newCachedThreadPool();
 
     private boolean managerInstalled() {
         for (String pkg : SHIZUKU_PKGS) {
