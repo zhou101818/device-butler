@@ -106,20 +106,44 @@ public class ShizukuBridgePlugin extends Plugin {
         }
     }
 
+    private static com.zhou101818.butler.IShellUserService userService = null;
+    private static final Object svcLock = new Object();
+
+    private com.zhou101818.butler.IShellUserService ensureUserService() throws Exception {
+        synchronized (svcLock) {
+            if (userService != null) return userService;
+            android.content.ComponentName cn = new android.content.ComponentName(getContext(), ShellUserService.class);
+            Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(cn)
+                    .packageName(getContext().getPackageName())
+                    .debuggable(false)
+                    .version(1);
+            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+            final android.os.IBinder[] ref = new android.os.IBinder[1];
+            final Throwable[] err = new Throwable[1];
+            android.content.ServiceConnection conn = new android.content.ServiceConnection() {
+                @Override
+                public void onServiceConnected(android.content.ComponentName name, android.os.IBinder binder) {
+                    ref[0] = binder;
+                    latch.countDown();
+                }
+
+                @Override
+                public void onServiceDisconnected(android.content.ComponentName name) {
+                    userService = null;
+                }
+            };
+            Shizuku.bindUserService(args, conn);
+            if (!latch.await(20, java.util.concurrent.TimeUnit.SECONDS)) {
+                throw new IOException(err[0] != null ? String.valueOf(err[0].getMessage()) : "绑定用户服务超时");
+            }
+            userService = com.zhou101818.butler.IShellUserService.Stub.asInterface(ref[0]);
+            return userService;
+        }
+    }
+
     private String runShizukuCmd(String cmd) throws Exception {
-        String[] env = null;
-        String dir = null;
-        Process p = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, env, dir);
-        StringBuilder out = new StringBuilder();
-        BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        String line;
-        while ((line = r.readLine()) != null) out.append(line).append("\n");
-        BufferedReader er = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-        StringBuilder err = new StringBuilder();
-        while ((line = er.readLine()) != null) err.append(line).append("\n");
-        p.waitFor();
-        String s = out.toString().trim();
-        return s.isEmpty() ? err.toString().trim() : s;
+        com.zhou101818.butler.IShellUserService svc = ensureUserService();
+        return svc.exec(cmd);
     }
 
     @PluginMethod
