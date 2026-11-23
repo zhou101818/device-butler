@@ -3,13 +3,15 @@ package com.zhou101818.butler;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import android.os.RemoteException;
+
 /**
  * 用户服务：运行在 Shizuku 服务进程内（shell uid），用于免 root 执行命令。
  */
 public class ShellUserService implements IShellUserService {
 
     @Override
-    public String exec(String cmd) {
+    public String exec(String cmd) throws RemoteException {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
             StringBuilder out = new StringBuilder();
@@ -28,7 +30,7 @@ public class ShellUserService implements IShellUserService {
     }
 
     @Override
-    public void exit() {
+    public void exit() throws RemoteException {
         System.exit(0);
     }
 }
