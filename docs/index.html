@@ -539,6 +539,7 @@ input[type=range]{accent-color:var(--amber)}
 
 <script>
 const $ = id => document.getElementById(id);
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const ADB = () => (IS_NATIVE && window.Capacitor.Plugins.AdbBridge) || null;
 function b64ToBytes(b64){
