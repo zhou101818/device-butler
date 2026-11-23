@@ -928,7 +928,12 @@ $('btnBack').addEventListener('click', leaveCtl);
 /* ---------- 角色与页面切换 ---------- */
 let role = localStorage.getItem('butler.role') || '';
 function showPane(id){
-  ['roleView','masterView','slaveView'].forEach(p=> $(p).classList.toggle('active', p === id));
+  ['roleView','masterView','slaveView'].forEach(p=>{
+    const el = $(p);
+    const on = (p === id);
+    el.classList.toggle('active', on);
+    el.classList.toggle('hidden', !on);
+  });
 }
 function enterRole(r, silent){
   role = r;
@@ -1099,7 +1104,7 @@ async function await0(){
     } catch(e){}
   }
   window.__applySafeInsets = ()=>{};
-  if (!role){ $('roleView').classList.add('active'); return; }
+  if (!role){ showPane('roleView'); return; }
   enterRole(role, true);
 })();
 </script>
