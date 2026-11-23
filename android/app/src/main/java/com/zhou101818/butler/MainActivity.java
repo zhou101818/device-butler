@@ -1,40 +1,74 @@
 package com.zhou101818.butler;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
-import android.view.WindowManager;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AdbBridgePlugin.class);
         registerPlugin(ShizukuBridgePlugin.class);
+        registerPlugin(UIBridgePlugin.class);
         super.onCreate(savedInstanceState);
-        // 状态栏留给系统：网页内容从状态栏下方开始布局
-        android.view.Window window = getWindow();
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
-        // 让 WebView 自己不再延伸到系统栏
-        View content = window.getDecorView();
-        content.setFitsSystemWindows(true);
-        // 顶部安全区常量注入（供 CSS 使用；Bridge 初始化后 WebView 才可用）
+        // 把系统栏高度注入 WebView CSS 变量（不依赖 fitsSystemWindows 的最终表现）
         getWindow().getDecorView().post(() -> {
-            WebView web = getBridge() != null ? getBridge().getWebView() : null;
+            final WebView web = getBridge() != null ? getBridge().getWebView() : null;
             if (web == null) return;
-            View.OnApplyWindowInsetsListener lis = (v, insets) -> {
-                int top = insets.getSystemWindowInsetTop();
-                int bottom = insets.getSystemWindowInsetBottom();
-                final String js = "window.__SAFETY__ = {top:" + top + ",bottom:" + bottom + "};"
-                        + "document.documentElement.style.setProperty('--sat'," + top + "px);"
-                        + "document.documentElement.style.setProperty('--sab'," + bottom + "px);"
-                        + "if (window.__applySafeInsets) window.__applySafeInsets();";
-                web.post(() -> web.evaluateJavascript(js, null));
-                return insets;
-            };
-            web.setOnApplyWindowInsetsListener(lis);
-            web.requestApplyInsets();
+            applyInsets(web);
+            web.getViewTreeObserver().addOnGlobalLayoutListener(() -> applyInsets(web));
         });
+    }
+
+    private void applyInsets(WebView web) {
+        try {
+            android.graphics.Rect r = new android.graphics.Rect();
+            getWindow().getDecorView().getWindowVisibleDisplayFrame(r);
+            int top = r.top;
+            if (top > 0) {
+                final String js = "document.documentElement.style.setProperty('--sat','" + top + "px');"
+                        + "if(window.__applySafeInsets)window.__applySafeInsets();";
+                web.post(() -> web.evaluateJavascript(js, null));
+            }
+        } catch (Throwable ignored) {}
+    }
+}
+
+/** UI 桥：打开外部链接（安卓 WebView 拦 window.open） */
+@CapacitorPlugin(name = "UIBridge")
+class UIBridgePlugin extends Plugin {
+    @PluginMethod
+    public void openUrl(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url == null || url.isEmpty()) { call.reject("空地址"); return; }
+        if (!(url.startsWith("https://") || url.startsWith("http://"))) { call.reject("仅支持 http(s)"); return; }
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("无法打开：" + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void insets(PluginCall call) {
+        android.graphics.Rect r = new android.graphics.Rect();
+        if (getActivity() != null) {
+            getActivity().getWindow().getDecorView().getWindowVisibleDisplayFrame(r);
+        }
+        JSObject ret = new JSObject();
+        ret.put("top", r.top);
+        call.resolve(ret);
     }
 }

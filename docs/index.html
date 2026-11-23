@@ -58,6 +58,7 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .rolecard .rc-go{margin-top:12px;color:var(--amber);font-size:12px;font-weight:600}
 .rolecard.slave .rc-go{color:var(--ok)}
 .role-switch{margin-top:22px;color:var(--ink2);font-size:11.5px;text-decoration:underline;cursor:pointer}
+/* ===== 网格总览 ===== */
 #gridView{flex:1;overflow:auto;padding:14px 16px 24px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .grid.cols1{grid-template-columns:minmax(0,520px);justify-content:center}
@@ -213,6 +214,7 @@ input[type=range]{accent-color:var(--amber)}
     <span class="mark"><svg class="ic"><use href="#i-monitor"/></svg></span>
     <h1>设备管家</h1>
   </div>
+  <span class="topbtns" style="margin-left:2px;color:var(--ink2);font-size:11px;cursor:pointer;white-space:nowrap" id="btnSwitchRole" title="切换角色">切换角色</span>
   <div class="viewswitch">
     <button class="vs" id="vs1">单</button>
     <button class="vs active" id="vs2">2 宫格</button>
@@ -225,7 +227,7 @@ input[type=range]{accent-color:var(--amber)}
   </div>
 </header>
 
-<main id="roleView">
+<main id="roleView" class="hidden">
   <div class="role-hero">
     <div class="mark"><svg><use href="#i-monitor"/></svg></div>
     <h2>设备管家</h2>
@@ -246,6 +248,52 @@ input[type=range]{accent-color:var(--amber)}
     </div>
   </div>
 </main>
+
+<div id="slaveView">
+  <div class="slave-head">
+    <div class="mark"><svg><use href="#i-monitor"/></svg></div>
+    <h2>被控端</h2>
+    <p>把本机交给局域网内的设备管家控制 · 免 root</p>
+  </div>
+
+  <div class="slavepanel">
+    <h3>准备步骤</h3>
+    <div class="step" id="step1">
+      <span class="no">1</span>
+      <div class="bd"><div class="t">安装 Shizuku</div><div class="d">被控需要它提供免 root 权限，从官网下载安装：<br><span class="mono">shizuku.rikka.app</span></div></div>
+      <span class="st" id="st1">检测中…</span>
+    </div>
+    <div class="step" id="step2">
+      <span class="no">2</span>
+      <div class="bd"><div class="t">启动 Shizuku 服务</div><div class="d">打开 Shizuku → 选「通过无线调试启动」→ 按引导配对一次（需在同一局域网）</div></div>
+      <span class="st" id="st2">未运行</span>
+    </div>
+    <div class="step" id="step3">
+      <span class="no">3</span>
+      <div class="bd"><div class="t">授予本应用权限</div><div class="d">Shizuku 服务运行后，授权设备管家使用</div></div>
+      <span class="st" id="st3">未授权</span>
+    </div>
+    <div class="step" id="step4">
+      <span class="no">4</span>
+      <div class="bd"><div class="t">开启网络 ADB</div><div class="d">一键执行，开启后控制端即可连接本机</div></div>
+      <span class="st" id="st4">未开启</span>
+    </div>
+    <div class="slavebtns">
+      <button class="btn" id="btnSzRefresh"><svg class="ic"><use href="#i-refresh"/></svg>重新检测</button>
+      <button class="btn pri" id="btnSzDownload2">下载 Shizuku</button>
+      <button class="btn" id="btnSzPerm2">授权设备管家</button>
+      <button class="btn pri" id="btnSzEnable2">开启网络 ADB (5555)</button>
+    </div>
+    <p class="hint" id="szHint2" style="text-align:center"></p>
+  </div>
+
+  <div class="addrbar">
+    <div class="lab">本机地址（告诉控制端）</div>
+    <div class="val" id="slaveAddr" title="点击复制">检测中…</div>
+  </div>
+
+  <div class="role-switch-bar" id="switchToMaster">切换为控制端</div>
+</div>
 
 <main id="gridView" class="hidden">
   <div class="grid cols2" id="grid"></div>
@@ -784,51 +832,7 @@ $('btnGlobalRefresh').addEventListener('click', async ()=>{
 });
 
 /* Shizuku 被控模式 */
-const SZ = () => (IS_NATIVE && window.Capacitor.Plugins.ShizukuBridge) || null;
-async function shizukuRefresh(){
-  const S = SZ();
-  if (!S){ $('sectSlave').style.display = 'none'; return; }
-  $('sectSlave').style.display = '';
-  const s = await S.status();
-  const lamp = $('szLamp');
-  let state, lampCls = 'lamp';
-  if (!s.installed){ state = '未安装 Shizuku（shizuku.rikka.app 下载）'; }
-  else if (!s.ping){ state = '已安装 · 服务未运行（打开 Shizuku 按引导启动）'; }
-  else if (!s.granted){ state = '服务运行中 · 未授权本应用'; lampCls = 'lamp busy'; }
-  else { state = '就绪 · 可以开启网络 ADB'; lampCls = 'lamp on'; }
-  $('szState').innerHTML = '<span class="' + lampCls + '"></span> ' + state;
-  return s;
-}
-$('btnSzCheck').addEventListener('click', ()=> shizukuRefresh().then(s => { if (s) toast('Shizuku：' + (s.installed ? (s.ping ? (s.granted ? '就绪' : '未授权') : '未运行') : '未安装'), s.granted ? 'ok' : ''); }));
-$('btnSzDownload').addEventListener('click', ()=>{
-  window.open('https://shizuku.rikka.app/zh-hans/download.html', '_blank');
-  toast('已打开 Shizuku 下载页，安装后回到本页点「检查」', 'ok');
-});
-$('szIps').addEventListener('click', ()=>{
-  const txt = $('szIps').textContent;
-  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>toast('已复制：' + txt, 'ok'));
-});
-$('btnSzPerm').addEventListener('click', async ()=>{
-  const S = SZ(); if (!S) return;
-  try { await S.requestPermission(); toast('已授权', 'ok'); await shizukuRefresh(); }
-  catch(e){ toast(String(e && e.message || e), 'bad'); }
-});
-$('btnSzEnable').addEventListener('click', async ()=>{
-  const S = SZ(); if (!S) return;
-  try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); return; }
-  $('btnSzEnable').disabled = true; $('btnSzEnable').textContent = '开启中…';
-  try {
-    const r = await S.enableNetworkAdb();
-    if (r.ok){
-      toast(r.msg + (r.persist ? '（重启后保持）' : '（设备重启后需重新开启）'), 'ok');
-      const ipr = await S.localIps();
-      const ips = (ipr.ips || []).join('  ');
-      if (ips){ $('szIps').textContent = ips + ' :5555'; $('szIpsRow').style.display = 'flex'; }
-      await shizukuRefresh();
-    } else toast(r.msg, 'bad');
-  } catch(e){ toast(String(e && e.message || e), 'bad'); }
-  $('btnSzEnable').disabled = false; $('btnSzEnable').textContent = '开启网络 ADB (5555)';
-});
+/* 旧控制台内被控面板逻辑已合并至被控端页面（slaveView） */
 
 /* 窄屏 tab */
 let ctlTab = 'colC';
@@ -838,63 +842,130 @@ function setCtlTab(id){
 }
 $('btnBack').addEventListener('click', leaveCtl);
 
-/* ---------- 角色选择 ---------- */
+/* ---------- 角色与页面切换 ---------- */
 let role = localStorage.getItem('butler.role') || '';
-function enterRole(r){
+function showPane(id){
+  ['roleView','gridView','slaveView'].forEach(p=> $(p).classList.toggle('active', p === id));
+}
+function enterRole(r, silent){
   role = r;
   localStorage.setItem('butler.role', r);
-  $('roleView').classList.add('hidden');
-  $('top').classList.remove('hidden');
+  $('top').classList.toggle('hidden', false);
   if (r === 'slave'){
-    // 被控端：进控制台并聚焦被控面板
-    $('gridView').classList.remove('hidden');
-    openSlaveMode();
-    toast('已进入被控模式：按左栏指引开启网络 ADB', 'ok');
+    showPane('slaveView');
+    if (!silent) toast('已进入被控端：按步骤开启后，把地址告诉控制端', 'ok');
+    slaveRefresh();
   } else {
-    $('gridView').classList.remove('hidden');
-  }
-  await0();
-}
-async function openSlaveMode(){
-  if (!IS_NATIVE){
-    toast('被控端功能需要手机版（桌面浏览器版暂不支持作为被控端）', 'bad');
-    return;
-  }
-  // 打开任一台已连接设备的控制视图以显示左栏被控面板；无连接时空展示
-  if (devices.length){
-    openCtl(devices[0].serial);
-  }
-  await shizukuRefresh();
-  const el = $('sectSlave');
-  if (el){
-    el.style.display = '';
-    el.scrollIntoView({behavior:'smooth', block:'center'});
+    showPane('gridView');
+    stopGrid();
+    refreshStatus().then(()=> startGrid());
+    if (!silent) toast('已进入控制端：添加设备开始连接', 'ok');
   }
 }
 $('pickMaster').addEventListener('click', ()=> enterRole('master'));
 $('pickSlave').addEventListener('click', ()=> enterRole('slave'));
+$('btnSwitchRole').addEventListener('click', ()=>{
+  localStorage.removeItem('butler.role');
+  role = '';
+  $('top').classList.add('hidden');
+  showPane('roleView');
+});
+$('switchToMaster').addEventListener('click', ()=> enterRole('master'));
 $('btnAdd').addEventListener('click', ()=>{
+  if (role === 'slave'){ enterRole('master'); return; }
   const f = $('addFormCard');
   if (f) f.scrollIntoView({behavior:'smooth', block:'center'});
   const inp = $('addrInput');
   if (inp) inp.focus();
 });
+
+/* ---------- 被控端页面 ---------- */
+const SZ = () => (IS_NATIVE && window.Capacitor.Plugins.ShizukuBridge) || null;
+function openExternal(url){
+  const U = IS_NATIVE && window.Capacitor.Plugins.UIBridge;
+  if (U){ U.openUrl({url}).then(()=>{}).catch(e=>toast('打开失败：' + String(e.message || e), 'bad')); }
+  else window.open(url, '_blank');
+}
+async function slaveRefresh(){
+  const S = SZ();
+  if (!S){
+    $('st1').textContent = '手机版可用'; $('st1').className = 'st ok';
+    $('st2').textContent = '需手机版'; $('st2').className = 'st';
+    $('slaveAddr').textContent = '被控端功能需要手机版';
+    return;
+  }
+  let s = {installed:false, ping:false, granted:false};
+  try { s = await S.status(); } catch(e){}
+  $('st1').textContent = s.installed ? '已安装' : '未安装';
+  $('st1').className = 'st' + (s.installed ? ' ok' : ' bad');
+  $('st2').textContent = s.ping ? '运行中' : '未运行';
+  $('st2').className = 'st' + (s.ping ? ' ok' : ' bad');
+  $('st3').textContent = s.granted ? '已授权' : '未授权';
+  $('st3').className = 'st' + (s.granted ? ' ok' : ' bad');
+  if (s.granted){
+    $('st4').textContent = '可开启';
+    $('st4').className = 'st ok';
+  }
+  const hint = !s.installed ? '点「下载 Shizuku」安装后，回来点「重新检测」'
+    : !s.ping ? '打开 Shizuku 应用，选「通过无线调试启动」，完成后回来重新检测'
+    : !s.granted ? '点「授权设备管家」，在弹窗中允许'
+    : '一切就绪：点「开启网络 ADB」';
+  $('szHint2').textContent = hint;
+  // 地址
+  try {
+    const ipr = await S.localIps();
+    const ip = (ipr.ips || [])[0];
+    $('slaveAddr').textContent = ip ? (ip + ':5555') : '未连入 Wi-Fi';
+  } catch(e){}
+}
+$('btnSzRefresh').addEventListener('click', ()=> slaveRefresh().then(()=>toast('已重新检测','ok')));
+$('btnSzDownload2').addEventListener('click', ()=>{
+  openExternal('https://shizuku.rikka.app/zh-hans/download.html');
+  toast('已打开浏览器下载页；装好后回 App 点「重新检测」', 'ok');
+});
+$('btnSzPerm2').addEventListener('click', async ()=>{
+  const S = SZ(); if (!S) return;
+  try { await S.requestPermission(); toast('已授权', 'ok'); slaveRefresh(); }
+  catch(e){ toast(String(e && e.message || e), 'bad'); }
+});
+$('btnSzEnable2').addEventListener('click', async ()=>{
+  const S = SZ(); if (!S) return;
+  try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); return; }
+  const b = $('btnSzEnable2');
+  b.disabled = true; b.textContent = '开启中…';
+  try {
+    const r = await S.enableNetworkAdb();
+    if (r.ok){
+      $('st4').textContent = '已开启'; $('st4').className = 'st ok';
+      toast(r.msg + (r.persist ? '（重启后保持）' : '（重启后需重新开启）'), 'ok');
+      slaveRefresh();
+    } else toast(r.msg, 'bad');
+  } catch(e){ toast(String(e && e.message || e), 'bad'); }
+  b.disabled = false; b.textContent = '开启网络 ADB (5555)';
+});
+$('slaveAddr').addEventListener('click', ()=>{
+  const t = $('slaveAddr').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast('已复制：' + t, 'ok'));
+});
+
 async function await0(){
-  await refreshStatus();
-  startGrid();
+  refreshStatus().then(()=> startGrid());
   setInterval(refreshStatus, 20000);
-  if (IS_NATIVE){ shizukuRefresh(); }
   bindAddCards();
 }
 
 /* init */
 (async function(){
   setViewCols(2);
-  if (!role){ $('roleView').classList.remove('hidden'); return; }
-  $('top').classList.remove('hidden');
-  $('gridView').classList.remove('hidden');
-  await await0();
-  if (role === 'slave') openSlaveMode();
+  if (IS_NATIVE && window.Capacitor.Plugins.UIBridge){
+    try {
+      const r = await window.Capacitor.Plugins.UIBridge.insets();
+      if (r && r.top) document.documentElement.style.setProperty('--sat', r.top + 'px');
+    } catch(e){}
+  }
+  window.__applySafeInsets = ()=>{};
+  if (!role){ $('roleView').classList.add('active'); return; }
+  enterRole(role, true);
 })();
 </script>
 </body>
