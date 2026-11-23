@@ -79,6 +79,73 @@ public class AdbBridgePlugin extends Plugin {
         }
     }
 
+    /** 原生 HTTP 配对：POST http://host:55666/pair（绕开 WebView cleartext 限制） */
+    @PluginMethod
+    public void pairWith(final PluginCall call) {
+        final String host = call.getString("host", "");
+        final String code = call.getString("code", "");
+        if (host.isEmpty() || code.isEmpty()) { call.reject("host 与 code 必填"); return; }
+        executor.submit(() -> {
+            java.net.HttpURLConnection conn = null;
+            try {
+                java.net.URL url = new java.net.URL("http://" + host + ":55666/pair");
+                conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(6000);
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                File pub = new File(keyDir(), "adbkey.pub");
+                if (!pub.exists()) { new File(keyDir(), "adbkey").delete(); loadKeyPair(); }
+                String pk = new String(java.nio.file.Files.readAllBytes(pub.toPath())).trim().split("\\s+")[0];
+                String payload = "{\"pairCode\":\"" + code + "\",\"publicKey\":\"" + pk + "\",\"name\":\"butler-ctl\"}";
+                byte[] data = payload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                conn.setFixedLengthStreamingMode(data.length);
+                java.io.OutputStream os = conn.getOutputStream();
+                os.write(data);
+                os.flush();
+                os.close();
+                int codeR = conn.getResponseCode();
+                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(
+                        codeR >= 400 ? conn.getErrorStream() : conn.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder();
+                String ln;
+                while ((ln = br.readLine()) != null) sb.append(ln);
+                br.close();
+                String resp = sb.toString();
+                JSObject ret = new JSObject();
+                if (codeR == 200 && resp.contains("\"ok\":true")) {
+                    ret.put("ok", true);
+                    call.resolve(ret);
+                } else {
+                    String msg = resp.contains("msg") ? extractJsonStr(resp, "msg") : ("HTTP " + codeR);
+                    call.reject("配对失败：" + msg);
+                }
+            } catch (java.net.ConnectException ce) {
+                call.reject("连不上配对服务：检查对方是否已开启「配对服务」，且两台设备在同一 Wi-Fi");
+            } catch (Exception e) {
+                call.reject("配对请求失败：" + String.valueOf(e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    private static String extractJsonStr(String json, String key) {
+        int i = json.indexOf("\"" + key + "\"");
+        if (i < 0) return "";
+        int c = json.indexOf(':', i + key.length() + 2);
+        int q1 = json.indexOf('"', c + 1);
+        if (c < 0 || q1 < 0) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int j = q1 + 1; j < json.length(); j++) {
+            char ch = json.charAt(j);
+            if (ch == '"') break;
+            sb.append(ch);
+        }
+        return sb.toString();
+    }
+
     private Dadb client(String serial) throws IOException {
         Dadb d = clients.get(serial);
         if (d == null) throw new IOException("设备未连接：" + serial);

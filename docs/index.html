@@ -1017,23 +1017,15 @@ async function doConnect2(){
   if (!addr){ errBox.textContent = '请输入 IP:端口'; errBox.style.display = 'block'; return; }
   const btn = $('btnDoConnect2');
   btn.disabled = true; btn.textContent = '连接中…';
-  // 配对码流程：先把本机公钥提交给被控端验证并注入白名单
-  if (pairCode && IS_NATIVE){
+  // 配对码流程：原生 HTTP 把本机公钥提交给被控端验证并注入白名单（绕开 WebView cleartext 限制）
+  if (pairCode && IS_NATIVE && ADB()){
     try {
       const host = addr.split(':')[0];
-      const pkR = await window.Capacitor.Plugins.AdbBridge.publicKey();
-      await fetch('http://' + host + ':55666/pair', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({pairCode: pairCode, publicKey: pkR.key, name: '设备管家控制端'})
-      }).then(async r => {
-        const j = await r.json();
-        if (!j.ok) throw new Error(j.msg || '配对失败');
-      });
+      await ADB().pairWith({host, code: pairCode});
       toast('配对成功，正在连接…', 'ok');
     } catch(e){
       btn.disabled = false; btn.textContent = '连接';
-      errBox.textContent = '配对失败：' + String(e && e.message || e) + '（确认对方已开启配对服务、码正确后重试）';
+      errBox.textContent = String(e && e.message || e);
       errBox.style.display = 'block';
       return;
     }
