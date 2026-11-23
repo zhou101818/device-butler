@@ -171,8 +171,6 @@ public class ShizukuBridgePlugin extends Plugin {
         }
     }
 
-    private final java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newCachedThreadPool();
-
     @PluginMethod
     public void localIps(PluginCall call) {
         try {
