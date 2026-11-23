@@ -108,7 +108,7 @@ public class ShizukuBridgePlugin extends Plugin {
 
     private String runShizukuCmd(String cmd) throws Exception {
         String[] env = null;
-        String[] dir = null;
+        String dir = null;
         Process p = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, env, dir);
         StringBuilder out = new StringBuilder();
         BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
