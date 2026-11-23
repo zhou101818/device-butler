@@ -41,7 +41,6 @@ public class ShizukuBridgePlugin extends Plugin {
         }
         return false;
     }
-    }
 
     private boolean ping() {
         try {
