@@ -74,12 +74,15 @@ public class PairServerPlugin extends Plugin {
 
     @PluginMethod
     public void start(PluginCall call) {
-        if (running) { call.resolve(); return; }
-        // 起服务前先验证 Shizuku shell 通道可用（配对时要用它注入公钥）
         executor.submit(() -> {
             try {
-                ShizukuBridgePlugin.probeShell(); // 无返回即通道 OK
-                server = new ServerSocket(PORT);
+                // 先清脏状态：旧的 server socket 残留会导致端口占用
+                if (server != null) { try { server.close(); } catch (IOException ignored) {} server = null; }
+                running = false;
+                ShizukuBridgePlugin.probeShell(); // 通道可用性检查（不可用会抛异常）
+                server = new ServerSocket();
+                server.setReuseAddress(true);
+                server.bind(new java.net.InetSocketAddress(PORT));
                 running = true;
                 executor.submit(this::serveLoop);
                 JSObject ret = new JSObject();
