@@ -8,7 +8,7 @@ import android.os.RemoteException;
 /**
  * 用户服务：运行在 Shizuku 服务进程内（shell uid），用于免 root 执行命令。
  */
-public class ShellUserService implements IShellUserService {
+public class ShellUserService extends IShellUserService.Stub {
 
     @Override
     public String exec(String cmd) throws RemoteException {
