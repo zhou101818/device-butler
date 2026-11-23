@@ -30,25 +30,17 @@ import rikka.shizuku.Shizuku;
 @CapacitorPlugin(name = "ShizukuBridge")
 public class ShizukuBridgePlugin extends Plugin {
 
-    private static final String SHIZUKU_PKG = "rikka.shizuku";
-    private static final int PERM_REQ_CODE = 9627;
-    private static final String ENABLE_CMD =
-            "settings put global adb_enabled 1; "
-            + "setprop persist.adb.tcp.port 5555; "
-            + "setprop service.adb.tcp.port 5555; "
-            + "stop adbd; sleep 1; start adbd; sleep 2; "
-            + "getprop service.adb.tcp.port";
-
-    private PluginCall pendingPermCall = null;
+    private static final String[] SHIZUKU_PKGS = {"moe.shizuku.android", "rikka.shizuku"};
 
     private boolean managerInstalled() {
-        try {
-            Context c = getContext();
-            PackageInfo pi = c.getPackageManager().getPackageInfo(SHIZUKU_PKG, 0);
-            return pi != null;
-        } catch (Exception e) {
-            return false;
+        for (String pkg : SHIZUKU_PKGS) {
+            try {
+                PackageInfo pi = getContext().getPackageManager().getPackageInfo(pkg, 0);
+                if (pi != null) return true;
+            } catch (Exception ignored) {}
         }
+        return false;
+    }
     }
 
     private boolean ping() {
