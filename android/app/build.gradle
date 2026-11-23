@@ -56,6 +56,14 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
+configurations.all {
+    exclude group: 'org.junit.jupiter'
+    exclude group: 'org.junit.platform'
+    exclude group: 'org.junit.vintage'
+    exclude group: 'org.opentest4j'
+    exclude group: 'org.apiguardian'
+}
+
 apply from: 'capacitor.build.gradle'
 
 try {
