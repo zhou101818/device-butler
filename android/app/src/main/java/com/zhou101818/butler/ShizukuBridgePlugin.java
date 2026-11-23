@@ -30,7 +30,7 @@ import rikka.shizuku.Shizuku;
 @CapacitorPlugin(name = "ShizukuBridge")
 public class ShizukuBridgePlugin extends Plugin {
 
-    private static final String[] SHIZUKU_PKGS = {"moe.shizuku.android", "rikka.shizuku"};
+    private static final String[] SHIZUKU_PKGS = {"moe.shizuku.privileged.api", "moe.shizuku.android", "rikka.shizuku"};
     private static final int PERM_REQ_CODE = 9627;
     private static final String ENABLE_CMD =
             "settings put global adb_enabled 1; "
