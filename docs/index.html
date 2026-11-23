@@ -209,6 +209,19 @@ input[type=range]{accent-color:var(--amber)}
 
 <main id="gridView">
   <div class="grid cols2" id="grid"></div>
+  <div class="addcard" id="addCard" data-add style="margin:14px auto 0;max-width:420px;min-height:120px">
+    <span class="plus"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></span>
+    <span class="t">添加设备</span>
+  </div>
+  <div class="addcard" id="addFormCard" style="margin:14px auto 0;max-width:420px">
+    <div class="addform">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">连接到目标设备</div>
+      <input id="addrInput" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">
+      <button class="btn pri" id="btnDoConnect" style="width:100%;justify-content:center">连接</button>
+      <div id="addrErr" style="display:none;color:#B91C1C;background:#FCE8E8;border:1px solid #F3B9B9;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.8;margin-top:8px"></div>
+      <div class="recent" id="recentBox"></div>
+    </div>
+  </div>
 </main>
 
 <div id="ctlView" class="hidden">
@@ -237,8 +250,16 @@ input[type=range]{accent-color:var(--amber)}
           <div class="sect-t">被控模式 · 免 root 互联</div>
           <div class="devcard" id="shizukuCard">
             <div class="devrow"><span class="k">Shizuku</span><span class="v" id="szState">检测中…</span></div>
-            <div class="devrow" id="szIpsRow" style="display:none"><span class="k">本机地址</span><span class="v b" id="szIps"></span></div>
+            <div class="devrow" id="szIpsRow" style="display:none"><span class="k">本机地址</span><span class="v b" id="szIps" title="点击复制" style="cursor:pointer"></span></div>
           </div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="btnSzCheck"><svg class="ic"><use href="#i-refresh"/></svg>检查</button>
+            <button class="btn" id="btnSzPerm">授权</button>
+            <button class="btn" id="btnSzDownload">下载 Shizuku</button>
+            <button class="btn pri" id="btnSzEnable">开启网络 ADB (5555)</button>
+          </div>
+          <p class="hint" id="szHint">本机作为被控端：开启后，局域网内其他设备管家连接 <span style="font-family:var(--mono)">本机IP:5555</span> 即可控制本机；连接时本机会弹出「允许调试」确认框，点允许即可（这就是远程控制邀请确认）。</p>
+        </div>
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn" id="btnSzCheck"><svg class="ic"><use href="#i-refresh"/></svg>检查</button>
             <button class="btn" id="btnSzPerm">授权</button>
@@ -395,13 +416,18 @@ async function api(path, body){
 }
 
 /* ---------- 状态 ---------- */
+let lastSerialKey = '';
 async function refreshStatus(){
   const s = await api('/api/status');
   const prev = devices.map(d=>d.serial);
   devices = s.devices || [];
   $('lamp').className = 'lamp' + (devices.length ? ' on' : '');
   if (curSerial && !devices.some(d=>d.serial === curSerial)){ leaveCtl(); }
-  renderGrid();
+  const key = devices.map(d=>d.serial + '|' + (d.props && d.props.battery) + '|' + (d.props && d.props.model)).join(';');
+  if (key !== lastSerialKey){
+    lastSerialKey = key;
+    renderGrid();
+  }
   if (curSerial){
     const cur = devices.find(d=>d.serial === curSerial);
     if (cur) renderCtl(cur);
@@ -417,45 +443,30 @@ function renderGrid(){
   });
   const grid = $('grid');
   let html = '';
+  if (devices.length === 0){
+    html += '<div class="emptygrid" style="grid-column:1/-1"><div class="big">还没有添加设备</div><div>按右侧表单填入目标设备的 IP:端口 即可连接<br>（电视盒子开「网络调试」；手机先用电脑执行过一次 adb tcpip 5555，或装 Shizuku 免 root 开启）</div></div>';
+  }
   for (const d of list){
     const p = d.props || {};
     const name = p.model || d.serial;
-    const sub = [p.version ? 'Android ' + p.version : '', p.battery ? p.battery : ''].filter(Boolean).join(' · ') || '在线';
     html += '<div class="dcard" data-serial="' + d.serial + '">'
       + '<div class="shotbox" data-open="' + d.serial + '">'
       + '<img data-shot="' + d.serial + '" alt="">'
       + '<span class="corner c-tl"></span><span class="corner c-tr"></span><span class="corner c-bl"></span><span class="corner c-br"></span>'
       + '<span class="tag">' + esc(name) + '</span>'
       + '<button class="more" data-more="' + d.serial + '" title="断开">断开</button>'
-      + '<div class="nolive" data-nolive="' + d.serial + '">等待画面…<br>设备需开启网络 ADB</div>'
+      + '<div class="nolive" data-nolive="' + d.serial + '">等待画面…</div>'
       + '</div>'
       + '<div class="dinfo"><div class="dname"><div class="n">' + esc(name) + '</div><div class="s">' + esc(d.serial) + '</div></div>'
       + '<button class="golive" data-open="' + d.serial + '">控制</button></div>'
       + '</div>';
   }
-  html += '<div class="addcard" id="addCard"><span class="plus"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></span><span class="t">添加设备</span></div>'
-    + '<div class="addcard hidden" id="addFormCard"><div class="addform">'
-    + '<input id="addrInput" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">'
-    + '<button class="btn pri" id="btnDoConnect" style="width:100%;justify-content:center">连接</button>'
-    + '<div class="recent" id="recentBox"></div>'
-    + '</div></div>';
   grid.innerHTML = html;
-  $('gridView').scrollTop = 0;
-  if (devices.length === 0){
-    grid.innerHTML = '<div class="emptygrid" style="grid-column:1/-1"><div class="big">还没有添加设备</div><div>点右上角「添加设备」，填入目标设备的 IP:端口<br>（电视盒子开「网络调试」，手机用电脑执行过一次 adb tcpip 5555）</div></div>'
-      + '<div class="addcard" id="addCard2" style="grid-column:1/-1;max-width:400px;justify-self:center"><span class="plus"><svg class="ic" style="width:22px;height:22px"><use href="#i-plus"/></svg></span><span class="t">添加设备</span></div>';
-    bindAddCards();
-    return;
-  }
-  bindAddCards();
 }
 function bindAddCards(){
-  document.querySelectorAll('[id^="addCard"]').forEach(c=>{
+  document.querySelectorAll('.addcard[data-add]').forEach(c=>{
     c.addEventListener('click', ()=>{
-      c.classList.add('hidden');
-      const f = $('addFormCard');
-      f.classList.remove('hidden');
-      f.classList.remove('hidden');
+      $('addFormCard').scrollIntoView({behavior:'smooth', block:'center'});
       renderRecent();
       $('addrInput').focus();
     });
@@ -479,17 +490,29 @@ function renderRecent(){
 async function doConnect(){
   const inp = $('addrInput');
   const addr = inp.value.trim();
-  if (!addr){ toast('请输入 IP:端口', 'bad'); return; }
+  const errBox = $('addrErr');
+  errBox.style.display = 'none';
+  if (!addr){ showAddrErr('请输入 IP:端口'); return; }
   const btn = $('btnDoConnect');
   btn.disabled = true; btn.textContent = '连接中…';
   const r = await api('/api/connect', {addr});
   btn.disabled = false; btn.textContent = '连接';
   if (r.ok){
     if (!recent.includes(addr)){ recent.unshift(addr); recent = recent.slice(0, 8); localStorage.setItem('butler.recent', JSON.stringify(recent)); }
-    toast('已连接 ' + addr, 'ok');
+    toast('已连接 ' + addr + '，如果设备弹出授权窗口，请在设备上点「允许」', 'ok');
     await refreshStatus();
     startGrid();
-  } else toast('连接失败：' + (r.msg || '未知错误'), 'bad');
+  } else {
+    let hint = r.msg || '未知错误';
+    if (/timeout/i.test(hint)) hint = '连接超时：确认与目标设备在同一局域网、IP 端口正确、目标已开启网络 ADB（手机可先用 Shizuku 或电脑 adb tcpip 开启）';
+    else if (/refused|closed/i.test(hint)) hint = '连接被拒绝：目标端口没有开放网络 ADB';
+    showAddrErr(hint);
+  }
+}
+function showAddrErr(msg){
+  const e = $('addrErr');
+  e.textContent = msg;
+  e.style.display = 'block';
 }
 
 /* ---------- 轮询（总览轮播） ---------- */
@@ -744,6 +767,14 @@ async function shizukuRefresh(){
   return s;
 }
 $('btnSzCheck').addEventListener('click', ()=> shizukuRefresh().then(s => { if (s) toast('Shizuku：' + (s.installed ? (s.ping ? (s.granted ? '就绪' : '未授权') : '未运行') : '未安装'), s.granted ? 'ok' : ''); }));
+$('btnSzDownload').addEventListener('click', ()=>{
+  window.open('https://shizuku.rikka.app/zh-hans/download.html', '_blank');
+  toast('已打开 Shizuku 下载页，安装后回到本页点「检查」', 'ok');
+});
+$('szIps').addEventListener('click', ()=>{
+  const txt = $('szIps').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>toast('已复制：' + txt, 'ok'));
+});
 $('btnSzPerm').addEventListener('click', async ()=>{
   const S = SZ(); if (!S) return;
   try { await S.requestPermission(); toast('已授权', 'ok'); await shizukuRefresh(); }
@@ -781,6 +812,7 @@ $('btnBack').addEventListener('click', leaveCtl);
   startGrid();
   setInterval(refreshStatus, 20000);
   if (IS_NATIVE){ shizukuRefresh(); }
+  bindAddCards();
 })();
 </script>
 </body>
