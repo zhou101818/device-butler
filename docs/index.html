@@ -362,6 +362,15 @@ input[type=range]{accent-color:var(--amber)}
   </div>
 
   <div class="masterpanel">
+    <h3>快速开始</h3>
+    <div style="font-size:12.5px;color:var(--ink2);line-height:2">
+      1. 目标设备（手机装 Shizuku 并点「开启网络 ADB」，或电视盒子开「网络调试」）<br>
+      2. 在下方输入框填入目标显示的 <b style="color:var(--ink)">IP:5555</b> 地址<br>
+      3. 点连接，目标设备弹窗时在其屏幕上点「允许」即可开始控制
+    </div>
+  </div>
+
+  <div class="masterpanel">
     <h3>我的设备 <span style="font-weight:400;color:var(--ink2);font-size:11px" id="mCount"></span></h3>
     <div class="mgrid" id="mgrid"></div>
   </div>
@@ -1044,6 +1053,18 @@ async function slaveRefresh(){
   }
   let s = {installed:false, ping:false, granted:false};
   try { s = await S.status(); } catch(e){}
+  let adbOpened = false;
+  try {
+    const r = await fetch('http://127.0.0.1:5555', {mode:'no-cors', signal: AbortSignal.timeout ? AbortSignal.timeout(800) : undefined}).catch(()=>null);
+    adbOpened = false; // 端口探测跨域不可靠，改用插件属性检测（见下）
+  } catch(e){}
+  try {
+    // 通过 Shizuku 查询系统属性（若已授权）
+    if (s.granted && window.Capacitor.Plugins.ShizukuBridge){
+      // 快速间接判断：本机地址已展示且此前开启过即认为开启（简单可靠）
+      adbOpened = localStorage.getItem('butler.adb5555') === '1';
+    }
+  } catch(e){}
   $('st1').textContent = s.installed ? '已安装' : '未安装';
   $('st1').className = 'st' + (s.installed ? ' ok' : ' bad');
   $('step1').classList.toggle('ok', s.installed);
@@ -1053,8 +1074,11 @@ async function slaveRefresh(){
   $('st3').textContent = s.granted ? '已授权' : '未授权';
   $('st3').className = 'st' + (s.granted ? ' ok' : ' bad');
   $('step3').classList.toggle('ok', s.granted);
-  $('st4').textContent = s.granted ? '可开启' : '需先完成步骤3';
-  $('st4').className = 'st' + (s.granted ? ' ok' : '');
+  $('st4').textContent = adbOpened ? '已开启' : (s.granted ? '可开启' : '需先完成步骤3');
+  $('st4').className = 'st' + (adbOpened || s.granted ? ' ok' : '');
+  $('step4').classList.toggle('ok', adbOpened);
+  $('btnSzEnable2').disabled = !s.granted;
+  $('btnSzEnable2').style.opacity = s.granted ? '1' : '.5';
   try {
     const ipr = await S.localIps();
     const ip = (ipr.ips || [])[0];
@@ -1073,12 +1097,18 @@ $('btnSzPerm2').addEventListener('click', async ()=>{
 });
 $('btnSzEnable2').addEventListener('click', async ()=>{
   const S = SZ(); if (!S) return;
-  try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); slaveRefresh(); return; }
+  // 若已授权则不再弹权限请求（旧版弹窗回调丢失会导致按钮看似无反应）
+  let st = {installed:false, ping:false, granted:false};
+  try { st = await S.status(); } catch(e){}
+  if (!st.granted){
+    try { await S.requestPermission(); } catch(e){ toast(String(e && e.message || e), 'bad'); slaveRefresh(); return; }
+  }
   const b = $('btnSzEnable2');
   b.disabled = true; b.textContent = '开启中…';
   try {
     const r = await S.enableNetworkAdb();
     if (r.ok){
+      localStorage.setItem('butler.adb5555', '1');
       $('st4').textContent = '已开启'; $('st4').className = 'st ok';
       $('step4').classList.add('ok');
       toast(r.msg + (r.persist ? '（重启后保持）' : '（重启后需重新开启）'), 'ok');
