@@ -273,46 +273,64 @@ public class AdbBridgePlugin extends Plugin {
     public void screenshot(PluginCall call) {
         String serial = call.getString("serial", "");
         async(call, () -> {
-            Future<?> guard = executor.submit(() -> {});
             try {
-                Dadb d = client(serial);
-                byte[] png;
-                try {
-                    long deadline = System.currentTimeMillis() + 15000;
-                    AdbShellStream s = d.openShell("screencap -p");
-                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                    while (System.currentTimeMillis() < deadline) {
-                        try {
-                            AdbShellPacket pkt = s.read();
-                            if (pkt instanceof AdbShellPacket.Exit) break;
-                            if (pkt instanceof AdbShellPacket.StdOut) {
-                                bos.write(((AdbShellPacket.StdOut) pkt).getPayload());
-                            }
-                        } catch (AdbStreamClosed closed) {
-                            break;
-                        }
-                    }
-                    try { s.close(); } catch (Exception ignored) {}
-                    png = bos.toByteArray();
-                    if (png.length < 8 || png[0] != (byte) 0x89) throw new IOException("输出非 PNG");
-                } catch (IOException v2Fail) {
-                    String remote = "/data/local/tmp/.butler_shot_" + Math.abs(serial.hashCode()) + ".png";
-                    d.shell("screencap -p " + remote);
-                    File tmp = new File(getContext().getCacheDir(), "shot.png");
-                    d.pull(tmp, remote);
-                    d.shell("rm " + remote);
-                    png = readAll(tmp);
-                    tmp.delete();
-                }
+                byte[] png = shotBytes(serial);
+                if (png == null) throw new IOException("截图超时");
                 JSObject ret = new JSObject();
                 ret.put("ok", true);
                 ret.put("b64", Base64.encodeToString(png, Base64.NO_WRAP));
                 call.resolve(ret);
             } catch (IOException | RuntimeException e) {
                 call.reject("截图失败：" + String.valueOf(e.getMessage()));
-                dropClient(serial);
             }
         });
+    }
+
+    /** 截图核心：v2 流读取 + 落盘 pull 双路径；超时/失败返回 null；不轻易断连接 */
+    private byte[] shotBytes(String serial) {
+        Dadb d;
+        try { d = client(serial); } catch (IOException e) { return null; }
+        byte[] png = null;
+        // 路径 A：shell_v2 raw 流
+        try {
+            long deadline = System.currentTimeMillis() + 12000;
+            AdbShellStream s = d.openShell("screencap -p");
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            while (System.currentTimeMillis() < deadline) {
+                try {
+                    AdbShellPacket pkt = s.read();
+                    if (pkt instanceof AdbShellPacket.Exit) break;
+                    if (pkt instanceof AdbShellPacket.StdOut) {
+                        bos.write(((AdbShellPacket.StdOut) pkt).getPayload());
+                    }
+                } catch (AdbStreamClosed closed) {
+                    break;
+                } catch (Throwable t) {
+                    break;
+                }
+            }
+            try { s.close(); } catch (Exception ignored) {}
+            byte[] out = bos.toByteArray();
+            if (out.length > 8 && out[0] == (byte) 0x89 && out[1] == (byte) 0x50) png = out;
+        } catch (Throwable t) {
+            // v2 失败，试降级
+        }
+        // 路径 B：落盘 + sync pull（双保险）
+        if (png == null) {
+            try {
+                String remote = "/data/local/tmp/.butler_shot_" + Math.abs(serial.hashCode()) + ".png";
+                d.shell("screencap -p " + remote);
+                File tmp = new File(getContext().getCacheDir(), "shot.png");
+                d.pull(tmp, remote);
+                d.shell("rm " + remote);
+                png = readAll(tmp);
+                tmp.delete();
+                if (png.length < 8 || png[0] != (byte) 0x89) png = null;
+            } catch (Throwable t) {
+                png = null;
+            }
+        }
+        return png;
     }
 
     private byte[] readAll(File f) throws IOException {

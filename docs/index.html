@@ -773,6 +773,7 @@ function startGrid(){
 }
 function stopGrid(){ clearInterval(gridTimer); }
 let gridIdx = 0;
+let shotFailCnt = {};   // serial -> 连续失败次数
 async function gridTick(){
   if (!devices.length) return;
   const d = devices[gridIdx % devices.length];
@@ -783,10 +784,27 @@ async function gridTick(){
     const r = await api('/api/screenshot', {serial: d.serial});
     if (r.ok && r.b64){
       img.src = 'data:image/png;base64,' + r.b64;
+      shotFailCnt[d.serial] = 0;
       const nl = document.querySelector('[data-nolive="' + d.serial + '"]');
       if (nl) nl.style.display = 'none';
+    } else {
+      shotFailCnt[d.serial] = (shotFailCnt[d.serial] || 0) + 1;
+      markShotFail(d.serial, r.msg || '截图失败');
     }
-  } catch(e){}
+  } catch(e){
+    shotFailCnt[d.serial] = (shotFailCnt[d.serial] || 0) + 1;
+    markShotFail(d.serial, '请求异常');
+  }
+}
+function markShotFail(serial, msg){
+  const nl = document.querySelector('[data-nolive="' + serial + '"]');
+  if (!nl) return;
+  const cnt = shotFailCnt[serial] || 0;
+  nl.style.display = '';
+  if (cnt === 3){
+    // 连续 3 次失败：显示具体原因（不再静默"等待画面"）
+    nl.innerHTML = '画面获取失败：<br>' + esc(String(msg).slice(0, 90));
+  }
 }
 
 /* ---------- 控制会话（手机：全屏云手机式 liveView；桌面仍走 ctlView） ---------- */
@@ -832,6 +850,7 @@ async function liveTick(){
       const now = Date.now();
       if (liveLastFrameAt) $('liveFps').textContent = Math.round(1000/(now-liveLastFrameAt)) + ' fps';
       liveLastFrameAt = now;
+      liveFailCnt = 0;
     } else if (r.ok && r.blob){
       const url = URL.createObjectURL(r.blob);
       const img = $('liveImg');
@@ -840,10 +859,18 @@ async function liveTick(){
       const now = Date.now();
       if (liveLastFrameAt) $('liveFps').textContent = Math.round(1000/(now-liveLastFrameAt)) + ' fps';
       liveLastFrameAt = now;
+      liveFailCnt = 0;
+    } else {
+      liveFailCnt = (liveFailCnt || 0) + 1;
+      if (liveFailCnt === 3) toast('画面获取失败：' + (r.msg || '未知').slice(0, 80), 'bad');
     }
-  } catch(e){}
+  } catch(e){
+    liveFailCnt = (liveFailCnt || 0) + 1;
+    if (liveFailCnt === 3) toast('画面请求异常：' + String(e && e.message || e).slice(0, 80), 'bad');
+  }
   liveInflight = false;
 }
+let liveFailCnt = 0;
 let liveTimer = null;
 function startLive(){
   stopLive();
