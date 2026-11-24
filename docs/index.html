@@ -915,7 +915,7 @@ stage.addEventListener('touchstart', e=>{
       if (!moved && tStart){
         stopLive();
         await api('/api/key', {serial: curSerial, key: 'back'});   // 长按 = 返回键
-        setTimeout(startLive, 300);
+        setTimeout(startLive, 1200);
         clearTimeout(longPressTimer); longPressTimer = null;
       }
     }, 700);
@@ -955,7 +955,7 @@ stage.addEventListener('touchend', async e=>{
       const p = imgXY(e.changedTouches[0]);
       stopLive();
       await api('/api/tap', {serial: curSerial, x: p.x, y: p.y});
-      setTimeout(startLive, 250);
+      setTimeout(startLive, 1200);
     }
   } else if (pinchDist === 0 && dur < 1500){
     // 拖动 = 远端滑动（swipe）；起点若在投屏底边附近自动吸附到屏幕边缘（兼容边缘手势）
@@ -973,7 +973,7 @@ stage.addEventListener('touchend', async e=>{
       // launcher 手势要求快速滑动：dur 压到 ≤300ms；先停轮询避免 dadb 并发流竞争
       stopLive();
       await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(300, dur)});
-      setTimeout(startLive, 300);
+      setTimeout(startLive, 1200);
     }
   }
   tStart = null; pinchDist = 0;
@@ -1009,7 +1009,7 @@ $('btnLiveSend').addEventListener('click', async ()=>{
   stopLive();
   const r = await api('/api/text', {serial: curSerial, text: t});
   if (r.ok){ $('liveTextInput').value = ''; toast('已发送', 'ok'); }
-  setTimeout(startLive, 300);
+  setTimeout(startLive, 1200);
 });
 $('liveTextInput').addEventListener('keydown', e=>{ if (e.key === 'Enter') $('btnLiveSend').click(); });
 $('liveFpsSlider').addEventListener('input', e=>{
@@ -1024,7 +1024,7 @@ document.querySelectorAll('#liveDock [data-key]').forEach(b=>{
     if (!curSerial) return;
     stopLive();
     await api('/api/key', {serial: curSerial, key: KEYMAP[b.dataset.key]});
-    setTimeout(startLive, 300);
+    setTimeout(startLive, 1200);
   });
 });
 function renderCtl(d){
