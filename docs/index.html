@@ -129,8 +129,10 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .live-top .lt-btn{border:none;background:rgba(11,21,38,.72);color:#CFE4FF;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
 .live-top .sp{flex:1}
 /* 悬浮工具条 */
-#liveDock{position:absolute;bottom:calc(12px + var(--sab));left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:6px;background:rgba(11,21,38,.78);border:1px solid rgba(127,181,255,.25);border-radius:16px;padding:8px 10px;backdrop-filter:blur(8px);transition:opacity .25s, transform .25s;max-width:94vw;flex-wrap:wrap;justify-content:center}
+#liveDock{position:absolute;bottom:calc(12px + var(--sab));left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:6px;background:rgba(11,21,38,.8);border:1px solid rgba(127,181,255,.25);border-radius:16px;padding:8px 10px;backdrop-filter:blur(8px);transition:opacity .25s, transform .25s;max-width:94vw;flex-wrap:wrap;justify-content:center}
 #liveDock.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(14px)}
+#liveBall{position:absolute;right:14px;bottom:calc(18px + var(--sab));z-index:6;width:44px;height:44px;border-radius:50%;background:rgba(11,21,38,.8);border:1px solid rgba(127,181,255,.4);color:#CFE4FF;font-size:20px;line-height:42px;text-align:center;cursor:pointer;backdrop-filter:blur(8px)}
+#liveBall:active{background:rgba(31,111,235,.5)}
 .dockbtn{border:none;background:rgba(31,111,235,.16);color:#CFE4FF;border-radius:11px;min-width:46px;padding:7px 10px;font-size:11.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
 .dockbtn:active{background:rgba(31,111,235,.4)}
 .dockbtn svg{width:16px;height:16px}
@@ -464,20 +466,15 @@ input[type=range]{accent-color:var(--amber)}
     </div>
     <div class="frow">刷新间隔 <input type="range" id="liveFpsSlider" min="3" max="30" value="10"> <b id="liveFpsLabel" style="font-family:var(--mono)">1.0s</b></div>
   </div>
-  <div id="liveDock">
+  <div id="liveDock" class="hide">
     <button class="dockbtn" data-key="home"><svg><use href="#i-home"/></svg>主页</button>
     <button class="dockbtn" data-key="back"><svg><use href="#i-back"/></svg>返回</button>
-    <button class="dockbtn" data-key="menu"><svg><use href="#i-menu"/></svg>菜单</button>
     <button class="dockbtn" data-key="recents"><svg><use href="#i-apps"/></svg>任务</button>
     <button class="dockbtn" data-key="volup"><svg><use href="#i-vol"/></svg>音量＋</button>
     <button class="dockbtn" data-key="voldown"><svg><use href="#i-vol"/></svg>音量－</button>
-    <button class="dockbtn" data-key="up">▲</button>
-    <button class="dockbtn" data-key="left">◀</button>
-    <button class="dockbtn" data-key="right">▶</button>
-    <button class="dockbtn" data-key="down">▼</button>
-    <button class="dockbtn" data-key="confirm">OK</button>
-    <button class="dockbtn" id="btnLiveMore" style="background:rgba(232,90,73,.25)"><svg><use href="#i-list"/></svg>更多</button>
+    <button class="dockbtn" id="btnLiveMore" style="background:rgba(232,90,73,.25)"><svg><use href="#i-list"/></svg>键盘</button>
   </div>
+  <div id="liveBall" title="工具">≡</div>
 </div>
 
 <div id="ctlView" class="hidden">
@@ -808,7 +805,8 @@ function markShotFail(serial, msg){
 }
 
 /* ---------- 控制会话（手机：全屏云手机式 liveView；桌面仍走 ctlView） ---------- */
-let livePollMs = 1000, liveLastFrameAt = 0, liveInflight = false, liveHideTimer = null;
+let livePollMs = 300, liveLastFrameAt = 0, liveInflight = false, liveHideTimer = null;
+let imgScale = 1;
 function openCtl(serial){
   curSerial = serial;
   stopGrid();
@@ -818,9 +816,11 @@ function openCtl(serial){
     const p = d.props || {};
     $('liveName').textContent = (p.model || serial) + (p.battery ? ' · ' + p.battery : '');
     $('liveView').classList.add('active');
-    $('liveFpsLabel').textContent = Math.round(livePollMs)/1000 + 's';
+    $('liveFpsLabel').textContent = (livePollMs/1000).toFixed(1) + 's';
+    $('liveFpsSlider').value = String(Math.round(livePollMs/100));
+    imgScale = 1; $('liveImg').style.transform = 'scale(1)';
     startLive();
-    wakeDock();
+    showDock(true);   // 进入时展示 2 秒提示后收起
   } else {
     $('gridView').classList.add('hidden');
     $('ctlView').classList.remove('hidden');
@@ -878,30 +878,116 @@ function startLive(){
   liveTimer = setInterval(liveTick, livePollMs);
 }
 function stopLive(){ clearInterval(liveTimer); liveTimer = null; }
-/* 工具条自动隐藏 */
-function wakeDock(){
-  const dock = $('liveDock'), top = $('liveTop');
-  dock.classList.remove('hide'); top.style.opacity = '1';
+/* 工具条改为浮球模式（默认隐藏，点浮球展开） */
+function wakeDock(){ showDock(true); }
+function showDock(show){
+  const dock = $('liveDock'), ball = $('liveBall'), top = $('liveTop');
+  dock.classList.toggle('hide', !show);
+  if (ball) ball.style.display = show ? 'none' : '';
+  top.style.opacity = show ? '1' : '0';
   clearTimeout(liveHideTimer);
-  liveHideTimer = setTimeout(()=>{ dock.classList.add('hide'); top.style.opacity = '0.25'; }, 4000);
+  if (show) liveHideTimer = setTimeout(()=>{ dock.classList.add('hide'); if (ball) ball.style.display = ''; top.style.opacity = '0'; }, 6000);
 }
-$('liveStage').addEventListener('click', async e=>{
-  wakeDock();
-  if (!curSerial) return;
+
+/* ---------- 纯触屏操作：点按/拖动/长按/双指缩放 ---------- */
+let tStart = null, lastTouch = null, pinchDist = 0, longPressTimer = null, moved = false;
+function imgXY(t){
   const img = $('liveImg');
-  if (!img.naturalWidth) return;
   const rect = img.getBoundingClientRect();
-  const x = Math.round((e.clientX - rect.left) / rect.width * img.naturalWidth);
-  const y = Math.round((e.clientY - rect.top) / rect.height * img.naturalHeight);
-  await api('/api/tap', {serial: curSerial, x, y});
-  setTimeout(liveTick, 120);
+  const cx = (t && t.clientX != null ? t.clientX : lastTouch.clientX) - rect.left;
+  const cy = (t && t.clientY != null ? t.clientY : lastTouch.clientY) - rect.top;
+  return { x: Math.max(0, Math.min(img.naturalWidth - 1, Math.round(cx / rect.width * img.naturalWidth))),
+           y: Math.max(0, Math.min(img.naturalHeight - 1, Math.round(cy / rect.height * img.naturalHeight))) };
+}
+const stage = $('liveStage');
+stage.addEventListener('touchstart', e=>{
+  if (!curSerial) return;
+  const ts = e.touches;
+  lastTouch = ts[0];
+  moved = false;
+  if (ts.length === 1){
+    tStart = { t: Date.now(), x: ts[0].clientX, y: ts[0].clientY };
+    const p = imgXY(ts[0]);
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(async ()=>{
+      if (!moved && tStart){
+        await api('/api/key', {serial: curSerial, key: 'back'});   // 长按 = 返回键（参考云手机习惯）
+        clearTimeout(longPressTimer); longPressTimer = null;
+      }
+    }, 700);
+  } else if (ts.length === 2){
+    pinchDist = Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+    clearTimeout(longPressTimer); longPressTimer = null;
+  }
+}, {passive: true});
+stage.addEventListener('touchmove', e=>{
+  if (!curSerial || !tStart) return;
+  const ts = e.touches;
+  lastTouch = ts[0];
+  if (ts.length === 2){
+    // 双指缩放画面显示
+    const d = Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+    const img = $('liveImg');
+    if (pinchDist > 0){
+      const ratio = Math.max(1, Math.min(2.5, imgScale * (d / pinchDist)));
+      imgScale = ratio;
+      img.style.transform = 'scale(' + ratio + ')';
+    }
+    pinchDist = d;
+    moved = true;
+    return;
+  }
+  const dx = ts[0].clientX - tStart.x, dy = ts[0].clientY - tStart.y;
+  if (Math.hypot(dx, dy) > 12) moved = true;
+  if (moved) e.preventDefault();
+}, {passive: false});
+stage.addEventListener('touchend', async e=>{
+  clearTimeout(longPressTimer); longPressTimer = null;
+  if (!curSerial || !tStart) return;
+  const dur = Date.now() - tStart.t;
+  if (!moved){
+    if (dur < 300 && pinchDist === 0){
+      // 轻点 = 远端点击
+      const p = imgXY(e.changedTouches[0]);
+      await api('/api/tap', {serial: curSerial, x: p.x, y: p.y});
+      setTimeout(liveTick, 100);
+    }
+  } else if (pinchDist === 0 && dur < 800){
+    // 拖动 = 远端滑动（swipe）
+    const img = $('liveImg');
+    const rect = img.getBoundingClientRect();
+    const sx = Math.round((tStart.x - rect.left) / rect.width * img.naturalWidth);
+    const sy = Math.round((tStart.y - rect.top) / rect.height * img.naturalHeight);
+    const ex = Math.round((e.changedTouches[0].clientX - rect.left) / rect.width * img.naturalWidth);
+    const ey = Math.round((e.changedTouches[0].clientY - rect.top) / rect.height * img.naturalHeight);
+    if (Math.hypot(ex - sx, ey - sy) > 20){
+      await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(600, dur)});
+      setTimeout(liveTick, 120);
+    }
+  }
+  tStart = null; pinchDist = 0;
+}, {passive: true});
+let imgScale = 1;
+/* 桌面鼠标点击兼容（MuMu/桌面浏览器测试路径） */
+stage.addEventListener('click', async e=>{
+  if (!curSerial || e.pointerType === undefined || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) return; // 触屏设备已有 touch 事件，避免双发
+  if (!window.matchMedia || !window.matchMedia('(pointer: coarse)').matches){
+    if (e.clientX !== undefined && !moved){
+      const img = $('liveImg');
+      if (!img.naturalWidth) return;
+      const rect = img.getBoundingClientRect();
+      const x = Math.round((e.clientX - rect.left) / rect.width * img.naturalWidth);
+      const y = Math.round((e.clientY - rect.top) / rect.height * img.naturalHeight);
+      await api('/api/tap', {serial: curSerial, x, y});
+      setTimeout(liveTick, 100);
+    }
+  }
 });
-$('liveStage').addEventListener('mousemove', ()=>{ if (curSerial) wakeDock(); });
 $('btnLiveBack').addEventListener('click', leaveCtl);
-$('btnLiveKeys').addEventListener('click', ()=> wakeDock());
+$('btnLiveKeys').addEventListener('click', ()=> showDock(true));
+$('liveBall').addEventListener('click', ()=> showDock(true));
 $('btnLiveMore').addEventListener('click', ()=>{
   $('liveMore').classList.toggle('show');
-  wakeDock();
 });
 $('btnLiveSend').addEventListener('click', async ()=>{
   const t = $('liveTextInput').value;
