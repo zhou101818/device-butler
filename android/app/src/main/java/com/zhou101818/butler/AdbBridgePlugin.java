@@ -43,8 +43,14 @@ public class AdbBridgePlugin extends Plugin {
     private static final Map<String, JSObject> propsCache = new ConcurrentHashMap<>();
     // 所有长任务跑在私有线程池：不占用 Capacitor 桥线程（否则一次卡顿会排队塞死后续所有 Promise）
     private final ExecutorService executor = Executors.newCachedThreadPool();
+    // 每设备命令串行锁：input/swipe/tap 与 screenshot 的 dadb 流并发会互相干扰（截流抢占导致 input 丢失），串行化
+    private static final Map<String, Object> deviceLocks = new ConcurrentHashMap<>();
 
-    /** 异步执行插件调用（彻底避免桥线程阻塞死锁） */
+    private Object lockFor(String serial) {
+        return deviceLocks.computeIfAbsent(serial == null ? "" : serial, k -> new Object());
+    }
+
+    /** 异步执行插件调用（彻底避免桥线程阻塞死锁）；input 类命令与截图互斥串行 */
     private void async(PluginCall call, Runnable body) {
         executor.submit(() -> {
             try { body.run(); }
@@ -348,53 +354,75 @@ public class AdbBridgePlugin extends Plugin {
 
     @PluginMethod
     public void tap(PluginCall call) {
-        try {
-            Dadb d = client(call.getString("serial", ""));
-            d.shell("input tap " + call.getInt("x", 0) + " " + call.getInt("y", 0));
-            call.resolve();
-        } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        final String serial = call.getString("serial", "");
+        async(call, () -> {
+            synchronized (lockFor(serial)) {
+                try {
+                    Dadb d = client(serial);
+                    d.shell("input tap " + call.getInt("x", 0) + " " + call.getInt("y", 0));
+                    call.resolve();
+                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+            }
+        });
     }
 
     @PluginMethod
     public void key(PluginCall call) {
-        try {
-            Dadb d = client(call.getString("serial", ""));
-            String key = call.getString("key", "");
-            java.util.Map<String, String> map = new java.util.HashMap<>();
-            map.put("home", "3"); map.put("back", "4"); map.put("menu", "82");
-            map.put("volup", "24"); map.put("voldown", "25"); map.put("power", "26");
-            map.put("recents", "187"); map.put("wake", "224"); map.put("sleep", "223");
-            map.put("up", "19"); map.put("down", "20"); map.put("left", "21"); map.put("right", "22"); map.put("confirm", "23");
-            String code = map.containsKey(key) ? map.get(key) : key;
-            d.shell("input keyevent " + code);
-            call.resolve();
-        } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        final String serial = call.getString("serial", "");
+        async(call, () -> {
+            synchronized (lockFor(serial)) {
+                try {
+                    Dadb d = client(serial);
+                    String key = call.getString("key", "");
+                    java.util.Map<String, String> map = new java.util.HashMap<>();
+                    map.put("home", "3"); map.put("back", "4"); map.put("menu", "82");
+                    map.put("volup", "24"); map.put("voldown", "25"); map.put("power", "26");
+                    map.put("recents", "187"); map.put("wake", "224"); map.put("sleep", "223");
+                    map.put("up", "19"); map.put("down", "20"); map.put("left", "21"); map.put("right", "22"); map.put("confirm", "23");
+                    String code = map.containsKey(key) ? map.get(key) : key;
+                    d.shell("input keyevent " + code);
+                    call.resolve();
+                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+            }
+        });
     }
 
     @PluginMethod
     public void swipe(PluginCall call) {
-        try {
-            Dadb d = client(call.getString("serial", ""));
-            d.shell("input swipe " + call.getInt("x1", 0) + " " + call.getInt("y1", 0)
-                    + " " + call.getInt("x2", 0) + " " + call.getInt("y2", 0) + " " + call.getInt("dur", 300));
-            call.resolve();
-        } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        final String serial = call.getString("serial", "");
+        async(call, () -> {
+            synchronized (lockFor(serial)) {
+                try {
+                    Dadb d = client(serial);
+                    d.shell("input swipe " + call.getInt("x1", 0) + " " + call.getInt("y1", 0)
+                            + " " + call.getInt("x2", 0) + " " + call.getInt("y2", 0) + " " + call.getInt("dur", 300));
+                    // 留 400ms 让远端 input 完成（launcher 手势识别需要完整 swipe 周期后不被打断）
+                    try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+                    call.resolve();
+                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+            }
+        });
     }
 
     @PluginMethod
     public void text(PluginCall call) {
-        try {
-            Dadb d = client(call.getString("serial", ""));
-            String t = call.getString("text", "");
-            if (t.isEmpty()) { call.reject("空文本"); return; }
-            t = t.replace(" ", "%s")
-                 .replace("&", "\\&").replace("<", "\\<").replace(">", "\\>")
-                 .replace("|", "\\|").replace("(", "\\(").replace(")", "\\)")
-                 .replace(";", "\\;").replace("'", "\\'").replace("\"", "\\\"")
-                 .replace("$", "\\$").replace("`", "\\`").replace("*", "\\*").replace("~", "\\~");
-            d.shell("input text " + t);
-            call.resolve();
-        } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+        final String serial = call.getString("serial", "");
+        async(call, () -> {
+            synchronized (lockFor(serial)) {
+                try {
+                    Dadb d = client(serial);
+                    String t = call.getString("text", "");
+                    if (t.isEmpty()) { call.reject("空文本"); return; }
+                    t = t.replace(" ", "%s")
+                         .replace("&", "\\&").replace("<", "\\<").replace(">", "\\>")
+                         .replace("|", "\\|").replace("(", "\\(").replace(")", "\\)")
+                         .replace(";", "\\;").replace("'", "\\'").replace("\"", "\\\"")
+                         .replace("$", "\\$").replace("`", "\\`").replace("*", "\\*").replace("~", "\\~");
+                    d.shell("input text " + t);
+                    call.resolve();
+                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
+            }
+        });
     }
 
     @PluginMethod
