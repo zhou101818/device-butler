@@ -954,14 +954,18 @@ stage.addEventListener('touchend', async e=>{
       await api('/api/tap', {serial: curSerial, x: p.x, y: p.y});
       setTimeout(liveTick, 100);
     }
-  } else if (pinchDist === 0 && dur < 800){
-    // 拖动 = 远端滑动（swipe）
+  } else if (pinchDist === 0 && dur < 1500){
+    // 拖动 = 远端滑动（swipe）；起点若在投屏底边附近自动吸附到屏幕边缘（兼容边缘手势）
     const img = $('liveImg');
     const rect = img.getBoundingClientRect();
-    const sx = Math.round((tStart.x - rect.left) / rect.width * img.naturalWidth);
-    const sy = Math.round((tStart.y - rect.top) / rect.height * img.naturalHeight);
-    const ex = Math.round((e.changedTouches[0].clientX - rect.left) / rect.width * img.naturalWidth);
-    const ey = Math.round((e.changedTouches[0].clientY - rect.top) / rect.height * img.naturalHeight);
+    let sx = Math.round((tStart.x - rect.left) / rect.width * img.naturalWidth);
+    let sy = Math.round((tStart.y - rect.top) / rect.height * img.naturalHeight);
+    let ex = Math.round((e.changedTouches[0].clientX - rect.left) / rect.width * img.naturalWidth);
+    let ey = Math.round((e.changedTouches[0].clientY - rect.top) / rect.height * img.naturalHeight);
+    // 边缘手势兼容：起点贴近底边（>=92%高度）则贴到 1278；贴近顶边（<=8%）则贴到 2
+    if (sy >= img.naturalHeight * 0.92) sy = Math.max(0, img.naturalHeight - 2);
+    if (sy <= img.naturalHeight * 0.08) sy = 2;
+    if (ey >= img.naturalHeight * 0.92) ey = Math.max(0, img.naturalHeight - 2);
     if (Math.hypot(ex - sx, ey - sy) > 20){
       await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(600, dur)});
       setTimeout(liveTick, 120);
