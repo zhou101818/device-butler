@@ -965,11 +965,10 @@ stage.addEventListener('touchend', async e=>{
     let sy = Math.round((tStart.y - rect.top) / rect.height * img.naturalHeight);
     let ex = Math.round((e.changedTouches[0].clientX - rect.left) / rect.width * img.naturalWidth);
     let ey = Math.round((e.changedTouches[0].clientY - rect.top) / rect.height * img.naturalHeight);
-    // 边缘手势兼容：起点贴近底边（>=92%高度）则贴到 1278；贴近顶边（<=8%）则贴到 2；终点同理
-    if (sy >= img.naturalHeight * 0.92) sy = Math.max(0, img.naturalHeight - 2);
-    if (sy <= img.naturalHeight * 0.08) sy = 2;
-    if (ey >= img.naturalHeight * 0.92) ey = Math.max(0, img.naturalHeight - 2);
-    if (ey <= img.naturalHeight * 0.08) ey = Math.max(4, Math.round(img.naturalHeight * 0.04));
+    // 边缘手势兼容：起点/终点贴近底边（>=92%高度）吸附到 88% 高度（部分设备 nav 区吞掉 >90% 的手势起点）
+    const edgeY = Math.round(img.naturalHeight * 0.88);
+    if (sy >= img.naturalHeight * 0.92) sy = edgeY;
+    if (ey >= img.naturalHeight * 0.92) ey = edgeY;
     if (Math.hypot(ex - sx, ey - sy) > 20){
       // launcher 手势要求快速滑动：dur 压到 ≤300ms；先停轮询避免 dadb 并发流竞争
       stopLive();
