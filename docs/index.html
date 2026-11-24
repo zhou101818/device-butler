@@ -58,37 +58,41 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .rolecard .rc-go{margin-top:12px;color:var(--amber);font-size:12px;font-weight:600}
 .rolecard.slave .rc-go{color:var(--ok)}
 .role-switch{margin-top:22px;color:var(--ink2);font-size:11.5px;text-decoration:underline;cursor:pointer}
-/* ===== 控制端页面 ===== */
-#masterView{flex:1;overflow:auto;padding:10px 16px calc(26px + var(--sab));display:none;flex-direction:column;align-items:center}
-#masterView.active{display:flex}
-.master-head{text-align:center;margin:18px 0 14px}
-.master-head h2{margin:0;font-size:20px;font-weight:800;letter-spacing:2px}
-.master-head p{color:var(--ink2);font-size:11.5px;margin:5px 0 0}
-.masterpanel{width:100%;max-width:640px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
-.masterpanel h3{margin:0 0 8px;font-size:13.5px}
-.mgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.mgrid.cols1{grid-template-columns:1fr}
-.mgrid.cols3{grid-template-columns:repeat(3,1fr)}
-.mcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--panel2)}
-.mcard:hover{border-color:var(--amber-d)}
-.mcard .mshot{position:relative;background:#0B1526;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;
-  background-image:linear-gradient(rgba(31,111,235,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(31,111,235,.07) 1px,transparent 1px);
-  background-size:22px 22px}
-.mcard .mshot img{max-width:100%;max-height:100%}
-.mcard .mshot .mtag{position:absolute;left:6px;top:6px;background:rgba(11,21,38,.85);color:#7FB5FF;border-radius:16px;padding:1px 8px;font-size:10px;font-family:var(--mono);max-width:calc(100% - 60px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mcard .mshot .mwait{color:#7FB5FF;font-size:10.5px}
-.mcard .minfo{display:flex;align-items:center;gap:8px;padding:7px 10px}
-.mcard .minfo .mn{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mcard .minfo .mn small{display:block;color:var(--ink2);font-weight:400;font-size:10px;font-family:var(--mono)}
-.mcard .minfo .mctl{border:none;background:var(--amber);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer}
-.madd{border:1.5px dashed var(--line2);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2);font-size:12px;aspect-ratio:9/16}
-.madd:hover{border-color:var(--amber);color:var(--amber)}
-.mform{display:flex;gap:8px;flex-wrap:wrap}
-.mform input{flex:1;min-width:200px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);border-radius:9px;padding:8px 11px;font-family:var(--mono);font-size:12.5px}
+/* ===== 控制端页面（通栏设备卡式） ===== */
+#masterView{flex:1;overflow:auto;padding:calc(14px + var(--sat)) 16px calc(20px + var(--sab));display:none}
+#masterView.active{display:block}
+.master-head{margin:2px 0 16px;padding:0 2px}
+.master-head h2{margin:0;font-size:21px;font-weight:800;letter-spacing:1px}
+.master-head p{color:var(--ink2);font-size:12px;margin:4px 0 0}
+/* 设备卡：通栏、左预览右信息 */
+.mlist{display:flex;flex-direction:column;gap:12px}
+.mrow{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;align-items:stretch;min-height:96px;cursor:pointer;box-shadow:0 1px 3px rgba(20,50,100,.05)}
+.mrow:hover{border-color:var(--amber)}
+.mrow .mpv{width:96px;flex:none;position:relative;background:#0B1526;overflow:hidden;min-height:96px}
+.mrow .mpv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.mrow .mpv img[src=""], .mrow .mpv img:not([src]){display:none}
+.mrow .mpv .on-pill{position:absolute;left:6px;top:6px;background:rgba(20,28,40,.78);color:#8FCE9C;border-radius:20px;padding:2px 8px;font-size:10.5px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);z-index:3}
+.mrow .mpv .on-pill i{width:6px;height:6px;border-radius:50%;background:#16A34A}
+.mrow .mpv .mwait{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;color:#7FB5FF;font-size:11px;text-align:center;line-height:1.5;white-space:nowrap;overflow:hidden}
+.mrow .mbody{flex:1;min-width:0;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.mrow .mname{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .mip{font-family:var(--mono);font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .msub{font-size:11px;color:var(--ink2)}
+.mrow .go{align-self:center;flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#B9C6D8;margin-right:12px}
+/* 添加卡（通栏） */
+.madd2{margin-top:16px;background:var(--panel);border:1.5px dashed var(--line2);border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center;cursor:pointer}
+.madd2:hover{border-color:var(--amber)}
+.madd2 .ma-plus{width:40px;height:40px;border-radius:12px;background:var(--amber-soft);color:var(--amber);display:flex;align-items:center;justify-content:center;flex:none}
+.madd2 .ma-body{flex:1;min-width:0}
+.madd2 .ma-t{font-size:13.5px;font-weight:600}
+.madd2 .ma-d{font-size:11.5px;color:var(--ink2);margin-top:2px}
+.madd2.open{border-style:solid;border-color:var(--line);cursor:default}
+.mform{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mform input{flex:1;min-width:180px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:12.5px}
 .mform input:focus{outline:2px solid #BFD3F0;border-color:var(--amber-d)}
-.mreclist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.role-switch-bar2{margin-top:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:100%;max-width:640px;padding:10px 0;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);font-size:13.5px;font-weight:700}
-.role-switch-bar2:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.mreclist{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.role-switch-bar2{margin-top:18px;display:flex;align-items:center;justify-content:center;width:100%;padding:11px 0;border-radius:14px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.role-switch-bar2:hover{border-color:var(--amber);color:var(--amber)}
 /* ===== 被控端页面 ===== */
 #slaveView{flex:1;overflow:auto;padding:10px 16px calc(26px + var(--sab));display:none;flex-direction:column;align-items:center}
 #slaveView.active{display:flex}
@@ -398,34 +402,31 @@ input[type=range]{accent-color:var(--amber)}
 
 <div id="masterView">
   <div class="master-head">
-    <h2>控制端</h2>
-    <p>添加并管理局域网内的设备 · 支持多台同时连接</p>
+    <h2>可控设备</h2>
+    <p>管理局域网内的安卓设备</p>
   </div>
 
-  <div class="masterpanel">
-    <h3>快速开始</h3>
-    <div style="font-size:12.5px;color:var(--ink2);line-height:2">
-      1. 目标设备（手机装 Shizuku 并点「开启网络 ADB」，或电视盒子开「网络调试」）<br>
-      2. 在下方输入框填入目标显示的 <b style="color:var(--ink)">IP:5555</b> 地址<br>
-      3. 点连接，目标设备弹窗时在其屏幕上点「允许」即可开始控制
+  <div class="mlist" id="mlist"></div>
+
+  <div class="madd2" id="mAddCard" data-madd>
+    <div class="ma-plus"><svg class="ic" style="width:18px;height:18px"><use href="#i-plus"/></svg></div>
+    <div class="ma-body">
+      <div class="ma-t">添加设备</div>
+      <div class="ma-d">IP:端口（如 192.168.5.18:5555），有配对码可免弹窗直连</div>
     </div>
   </div>
 
-  <div class="masterpanel">
-    <h3>我的设备 <span style="font-weight:400;color:var(--ink2);font-size:11px" id="mCount"></span></h3>
-    <div class="mgrid" id="mgrid"></div>
-  </div>
-
-  <div class="masterpanel">
-    <h3>添加设备</h3>
-    <div class="mform">
-      <input id="addrInput2" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">
-      <input id="pairInput2" maxlength="6" inputmode="numeric" placeholder="配对码（选填）" style="max-width:150px;text-align:center;font-family:var(--mono)">
-      <button class="btn pri" id="btnDoConnect2">连接</button>
+  <div class="madd2 open" id="mAddForm" style="display:none">
+    <div class="ma-body">
+      <div class="ma-t">连接到目标设备</div>
+      <div class="mform">
+        <input id="addrInput2" placeholder="IP:端口（如 192.168.5.18:5555）" spellcheck="false">
+        <input id="pairInput2" maxlength="6" inputmode="numeric" placeholder="配对码（选填）" style="max-width:130px;text-align:center;font-family:var(--mono)">
+        <button class="btn pri" id="btnDoConnect2">连接</button>
+      </div>
+      <div id="addrErr2" style="display:none;color:#B91C1C;background:#FCE8E8;border:1px solid #F3B9B9;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.8;margin-top:8px"></div>
+      <div class="mreclist" id="recentBox2"></div>
     </div>
-    <div style="font-size:11px;color:var(--ink2);margin-top:6px">填了 6 位配对码 → 对方设备无需任何确认，直接连上（对方需开启配对服务）</div>
-    <div id="addrErr2" style="display:none;color:#B91C1C;background:#FCE8E8;border:1px solid #F3B9B9;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.8;margin-top:8px"></div>
-    <div class="mreclist" id="recentBox2"></div>
   </div>
 
   <div class="role-switch-bar2" id="switchToSlave">切换为被控端</div>
@@ -799,8 +800,9 @@ function markShotFail(serial, msg){
   const cnt = shotFailCnt[serial] || 0;
   nl.style.display = '';
   if (cnt === 3){
-    // 连续 3 次失败：显示具体原因（不再静默"等待画面"）
-    nl.innerHTML = '画面获取失败：<br>' + esc(String(msg).slice(0, 90));
+    // 连续失败：预览区只显示短提示（完整原因看 toast）
+    nl.textContent = '画面获取失败';
+    toast('画面获取失败：' + String(msg).slice(0, 90), 'bad');
   }
 }
 
@@ -1238,26 +1240,28 @@ function enterRole(r, silent){
     if (!silent) toast('已进入控制端：添加设备开始连接', 'ok');
   }
 }
-/* 控制端页：设备宫格 + 连接表单 */
+/* 控制端页：通栏设备卡 + 连接表单 */
 function renderMasterGrid(){
-  const box = $('mgrid');
+  const box = $('mlist');
   if (!box) return;
-  $('mCount').textContent = devices.length ? ('· ' + devices.length + ' 台') : '';
   let html = '';
   for (const d of devices){
     const p = d.props || {};
-    const name = p.model || d.serial;
-    html += '<div class="mcard" data-mopen="' + d.serial + '">'
-      + '<div class="mshot">'
+    const name = p.model || d.serial.split(':')[0];
+    html += '<div class="mrow" data-mopen="' + d.serial + '">'
+      + '<div class="mpv">'
       + '<img data-shot="' + d.serial + '" alt="">'
-      + '<span class="mtag">' + esc(name) + '</span>'
+      + '<span class="on-pill"><i></i>在线</span>'
       + '<div class="mwait" data-nolive="' + d.serial + '">等待画面…</div>'
       + '</div>'
-      + '<div class="minfo"><div class="mn">' + esc(name) + '<small>' + esc(d.serial) + (p.battery ? ' · ' + p.battery : '') + '</small></div>'
-      + '<button class="mctl" data-mopen="' + d.serial + '">控制</button></div>'
+      + '<div class="mbody">'
+      + '<div class="mname">' + esc(name) + '</div>'
+      + '<div class="mip">' + esc(d.serial) + '</div>'
+      + '<div class="msub">' + [p.version ? 'Android ' + p.version : '', p.resolution || ''].filter(Boolean).join(' · ') + '</div>'
+      + '</div>'
+      + '<div class="go"><svg class="ic"><use href="#i-back"/></svg></div>'
       + '</div>';
   }
-  html += '<div class="madd" data-madd>＋ 添加设备</div>';
   box.innerHTML = html;
 }
 function renderRecent2(){
@@ -1313,11 +1317,15 @@ async function doConnect2(){
 }
 $('btnDoConnect2').addEventListener('click', doConnect2);
 $('addrInput2').addEventListener('keydown', e=>{ if (e.key === 'Enter') doConnect2(); });
-$('mgrid').addEventListener('click', e=>{
-  const add = e.target.closest('[data-madd]');
-  if (add){ $('addrInput2').focus(); $('addrInput2').scrollIntoView({behavior:'smooth', block:'center'}); return; }
+$('mlist').addEventListener('click', e=>{
   const open = e.target.closest('[data-mopen]');
   if (open){ openCtl(open.dataset.mopen); }
+});
+$('mAddCard').addEventListener('click', ()=>{
+  $('mAddCard').style.display = 'none';
+  $('mAddForm').style.display = '';
+  renderRecent2();
+  $('addrInput2').focus();
 });
 $('pickMaster').addEventListener('click', ()=> enterRole('master'));
 $('pickSlave').addEventListener('click', ()=> enterRole('slave'));
