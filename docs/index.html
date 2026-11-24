@@ -132,21 +132,46 @@ svg.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .live-chip .fps{font-family:var(--mono);color:#7FB5FF}
 .live-top .lt-btn{border:none;background:rgba(11,21,38,.72);color:#CFE4FF;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
 .live-top .sp{flex:1}
-/* 悬浮工具条 */
-#liveDock{position:absolute;bottom:calc(12px + var(--sab));left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:6px;background:rgba(11,21,38,.8);border:1px solid rgba(127,181,255,.25);border-radius:16px;padding:8px 10px;backdrop-filter:blur(8px);transition:opacity .25s, transform .25s;max-width:94vw;flex-wrap:wrap;justify-content:center}
-#liveDock.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(14px)}
-#liveBall{position:absolute;right:14px;bottom:calc(18px + var(--sab));z-index:6;width:44px;height:44px;border-radius:50%;background:rgba(11,21,38,.8);border:1px solid rgba(127,181,255,.4);color:#CFE4FF;font-size:20px;line-height:42px;text-align:center;cursor:pointer;backdrop-filter:blur(8px)}
-#liveBall:active{background:rgba(31,111,235,.5)}
-.dockbtn{border:none;background:rgba(31,111,235,.16);color:#CFE4FF;border-radius:11px;min-width:46px;padding:7px 10px;font-size:11.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
-.dockbtn:active{background:rgba(31,111,235,.4)}
-.dockbtn svg{width:16px;height:16px}
-/* 更多面板（键盘输入/设置） */
-#liveMore{position:absolute;bottom:calc(70px + var(--sab));left:50%;transform:translateX(-50%);z-index:6;background:rgba(11,21,38,.9);border:1px solid rgba(127,181,255,.3);border-radius:14px;padding:12px;display:none;width:min(400px,92vw)}
-#liveMore.show{display:block}
-#liveMore .lr{display:flex;gap:8px;margin-bottom:8px}
-#liveMore input[type=text]{flex:1;border:1px solid rgba(127,181,255,.3);background:rgba(0,0,0,.3);color:#E6F0FF;border-radius:9px;padding:8px 11px;font-size:13px}
-#liveMore .frow{display:flex;align-items:center;gap:10px;color:#9FB8DB;font-size:12px;margin-top:4px}
-#liveMore select{background:rgba(0,0,0,.3);color:#E6F0FF;border:1px solid rgba(127,181,255,.3);border-radius:8px;padding:5px 8px}
+/* 悬浮球（收起态）+ 侧边功能面板（展开态，参考云手机侧拉面板） */
+#liveBall{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:8;width:48px;height:48px;border-radius:50%;background:rgba(11,21,38,.86);border:1px solid rgba(127,181,255,.45);color:#CFE4FF;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 4px 18px rgba(0,0,0,.35)}
+#liveBall:active{background:rgba(31,111,235,.55)}
+#liveBall svg{width:22px;height:22px}
+#livePanel{position:absolute;right:0;top:0;bottom:0;width:min(270px,72vw);z-index:7;background:rgba(248,250,253,.97);border-left:1px solid rgba(127,181,255,.25);border-radius:18px 0 0 18px;transform:translateX(105%);transition:transform .28s ease;display:flex;flex-direction:column;padding:16px 14px calc(14px + var(--sab));overflow-y:auto;backdrop-filter:blur(10px);box-shadow:-8px 0 26px rgba(4,12,28,.25)}
+#livePanel.open{transform:translateX(0)}
+.lp-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.lp-head .h-chip{background:linear-gradient(135deg,#1F6FEB,#4D9AFF);color:#fff;border-radius:12px;padding:8px 12px;font-size:12px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-head .h-x{border:none;background:transparent;color:#64748B;font-size:18px;width:28px;height:28px;border-radius:50%;cursor:pointer}
+.lp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px;margin-bottom:18px}
+.lp-btn{border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;padding:4px 0}
+.lp-btn .ic2{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 3px 8px rgba(20,60,120,.18)}
+.lp-btn .ic2 svg{width:22px;height:22px}
+.lp-btn:active .ic2{transform:scale(.94)}
+.lp-btn span{font-size:11px;color:#334155;font-weight:600}
+.lp-btn.blue .ic2{background:#1F6FEB}
+.lp-btn.orange .ic2{background:#F59E0B}
+.lp-btn.red .ic2{background:#EF4444}
+.lp-btn.slate .ic2{background:#475569}
+.lp-btn.green .ic2{background:#10B981}
+/* 开关行 */
+.lp-switch{display:flex;align-items:center;justify-content:space-between;padding:11px 4px;border-bottom:1px solid #E7EDF5}
+.lp-switch .t{font-size:13px;color:#1E293B;font-weight:600}
+.lp-switch .sw2{position:relative;width:42px;height:24px;flex:none}
+.lp-switch .sw2 input{opacity:0;width:0;height:0;position:absolute}
+.lp-switch .sw2 i{position:absolute;inset:0;background:#CBD5E1;border-radius:12px;transition:.2s;cursor:pointer}
+.lp-switch .sw2 i:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.lp-switch .sw2 input:checked + i{background:#1F6FEB}
+.lp-switch .sw2 input:checked + i:before{transform:translateX(18px)}
+/* 底部小操作 */
+.lp-foot{margin-top:auto;padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.lp-foot .lf{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #DCE5F0;border-radius:11px;padding:9px 0;font-size:12px;color:#475569;cursor:pointer;background:#fff}
+.lp-foot .lf:hover{border-color:#1F6FEB;color:#1F6FEB}
+.lp-foot .lf svg{width:15px;height:15px}
+/* 键盘输入条 */
+.lp-key{margin:0 0 14px}
+.lp-key .lr{display:flex;gap:7px}
+.lp-key input{flex:1;border:1px solid #C9D6E8;background:#fff;color:#1E293B;border-radius:10px;padding:9px 11px;font-size:13px}
+.lp-key input:focus{outline:2px solid #B9D4F5;border-color:#1F6FEB}
+.lp-key .btn{white-space:nowrap}
 /* ===== 网格总览（旧视图） ===== */
 #gridView{flex:1;overflow:auto;padding:14px 16px 24px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -455,27 +480,54 @@ input[type=range]{accent-color:var(--amber)}
     <span class="live-chip"><span class="dot"></span>LIVE<span class="fps" id="liveFps">-- fps</span></span>
     <span class="live-chip" id="liveName" style="max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</span>
     <span class="sp"></span>
-    <button class="lt-btn" id="btnLiveKeys" title="工具条" style="border-radius:12px;width:auto;padding:0 12px;font-size:12px">工具</button>
+    <button class="lt-btn" id="btnLiveKeys" title="功能面板" style="border-radius:12px;width:auto;padding:0 12px;font-size:12px">功能</button>
   </div>
   <div id="liveStage">
     <img id="liveImg" alt="" draggable="false">
   </div>
-  <div id="liveMore">
-    <div class="lr">
-      <input type="text" id="liveTextInput" placeholder="输入文字发送到设备" enterkeyhint="send">
-      <button class="btn pri" id="btnLiveSend">发送</button>
+
+  <div id="liveBall" title="功能面板">
+    <svg class="ic"><use href="#i-grid"/></svg>
+  </div>
+
+  <div id="livePanel">
+    <div class="lp-head">
+      <div class="h-chip" id="lpName">控制台</div>
+      <button class="h-x" id="lpClose" title="收起">✕</button>
     </div>
-    <div class="frow">刷新间隔 <input type="range" id="liveFpsSlider" min="3" max="30" value="10"> <b id="liveFpsLabel" style="font-family:var(--mono)">1.0s</b></div>
+
+    <div class="lp-key">
+      <div class="lr">
+        <input type="text" id="liveTextInput" placeholder="输入文字发送到设备" enterkeyhint="send">
+        <button class="btn pri" id="btnLiveSend">发送</button>
+      </div>
+    </div>
+
+    <div class="lp-grid">
+      <button class="lp-btn blue" data-key="home"><span class="ic2"><svg><use href="#i-home"/></svg></span><span>主页</span></button>
+      <button class="lp-btn blue" data-key="back"><span class="ic2"><svg><use href="#i-back"/></svg></span><span>返回</span></button>
+      <button class="lp-btn blue" data-key="recents"><span class="ic2"><svg><use href="#i-apps"/></svg></span><span>任务</span></button>
+      <button class="lp-btn slate" data-key="volup"><span class="ic2"><svg><use href="#i-vol"/></svg></span><span>音量＋</span></button>
+      <button class="lp-btn slate" data-key="voldown"><span class="ic2"><svg><use href="#i-vol"/></svg></span><span>音量－</span></button>
+      <button class="lp-btn orange" id="btnLpMute"><span class="ic2"><svg><use href="#i-vol"/></svg></span><span>静音</span></button>
+      <button class="lp-btn slate" data-key="power"><span class="ic2"><svg><use href="#i-power"/></svg></span><span>电源</span></button>
+      <button class="lp-btn slate" id="btnLpWake"><span class="ic2"><svg><use href="#i-power"/></svg></span><span>亮屏</span></button>
+      <button class="lp-btn orange" id="btnLpSleep"><span class="ic2"><svg><use href="#i-power"/></svg></span><span>熄屏</span></button>
+      <button class="lp-btn green" id="btnLpRotate"><span class="ic2"><svg><use href="#i-refresh"/></svg></span><span>旋转</span></button>
+      <button class="lp-btn red" id="btnLpReboot"><span class="ic2"><svg><use href="#i-power"/></svg></span><span>重启</span></button>
+      <button class="lp-btn slate" id="btnLpLock"><span class="ic2"><svg><use href="#i-list"/></svg></span><span>锁屏</span></button>
+    </div>
+
+    <div class="lp-switch">
+      <span class="t">键盘跟随</span>
+      <label class="sw2"><input type="checkbox" id="lpKbFollow" checked><i></i></label>
+    </div>
+
+    <div class="lp-foot">
+      <div class="lf" id="btnLpKeyboard"><svg class="ic"><use href="#i-list"/></svg>打开键盘</div>
+      <div class="lf" id="btnLpExit"><svg class="ic"><use href="#i-x"/></svg>退出控制</div>
+    </div>
   </div>
-  <div id="liveDock" class="hide">
-    <button class="dockbtn" data-key="home"><svg><use href="#i-home"/></svg>主页</button>
-    <button class="dockbtn" data-key="back"><svg><use href="#i-back"/></svg>返回</button>
-    <button class="dockbtn" data-key="recents"><svg><use href="#i-apps"/></svg>任务</button>
-    <button class="dockbtn" data-key="volup"><svg><use href="#i-vol"/></svg>音量＋</button>
-    <button class="dockbtn" data-key="voldown"><svg><use href="#i-vol"/></svg>音量－</button>
-    <button class="dockbtn" id="btnLiveMore" style="background:rgba(232,90,73,.25)"><svg><use href="#i-list"/></svg>键盘</button>
-  </div>
-  <div id="liveBall" title="工具">≡</div>
 </div>
 
 <div id="ctlView" class="hidden">
@@ -817,12 +869,11 @@ function openCtl(serial){
     const d = devices.find(x=>x.serial === serial) || {props:{}};
     const p = d.props || {};
     $('liveName').textContent = (p.model || serial) + (p.battery ? ' · ' + p.battery : '');
+    $('lpName').textContent = p.model || serial;
     $('liveView').classList.add('active');
-    $('liveFpsLabel').textContent = (livePollMs/1000).toFixed(1) + 's';
-    $('liveFpsSlider').value = String(Math.round(livePollMs/100));
     imgScale = 1; $('liveImg').style.transform = 'scale(1)';
+    showPanel(false);   // 进入即收起：只留悬浮球，画面零遮挡
     startLive();
-    showDock(true);   // 进入时展示 2 秒提示后收起
   } else {
     $('gridView').classList.add('hidden');
     $('ctlView').classList.remove('hidden');
@@ -880,16 +931,21 @@ function startLive(){
   liveTimer = setInterval(liveTick, livePollMs);
 }
 function stopLive(){ clearInterval(liveTimer); liveTimer = null; }
-/* 工具条改为浮球模式（默认隐藏，点浮球展开） */
-function wakeDock(){ showDock(true); }
-function showDock(show){
-  const dock = $('liveDock'), ball = $('liveBall'), top = $('liveTop');
-  dock.classList.toggle('hide', !show);
-  if (ball) ball.style.display = show ? 'none' : '';
-  top.style.opacity = show ? '1' : '0';
-  clearTimeout(liveHideTimer);
-  if (show) liveHideTimer = setTimeout(()=>{ dock.classList.add('hide'); if (ball) ball.style.display = ''; top.style.opacity = '0'; }, 6000);
+/* 侧边功能面板（浮球展开/收起，参考云手机侧拉面板） */
+function panelOpen(){ return $('livePanel').classList.contains('open'); }
+function showPanel(open){
+  const p = $('livePanel'), ball = $('liveBall'), top = $('liveTop');
+  if (open){
+    p.classList.add('open');
+    ball.style.display = 'none';
+    top.style.opacity = '1';
+  } else {
+    p.classList.remove('open');
+    ball.style.display = '';
+    top.style.opacity = '0';
+  }
 }
+function togglePanel(){ showPanel(!panelOpen()); }
 
 /* ---------- 纯触屏操作：点按/拖动/长按/双指缩放 ---------- */
 let tStart = null, lastTouch = null, pinchDist = 0, longPressTimer = null, moved = false;
@@ -1004,10 +1060,37 @@ stage.addEventListener('click', async e=>{
   }
 });
 $('btnLiveBack').addEventListener('click', leaveCtl);
-$('btnLiveKeys').addEventListener('click', ()=> showDock(true));
-$('liveBall').addEventListener('click', ()=> showDock(true));
-$('btnLiveMore').addEventListener('click', ()=>{
-  $('liveMore').classList.toggle('show');
+$('btnLiveKeys').addEventListener('click', togglePanel);
+$('liveBall').addEventListener('click', togglePanel);
+$('lpClose').addEventListener('click', ()=> showPanel(false));
+$('btnLpExit').addEventListener('click', ()=>{ showPanel(false); leaveCtl(); });
+$('btnLpKeyboard').addEventListener('click', ()=> $('liveTextInput').focus());
+/* 面板功能键（静音/亮熄屏/旋转/锁屏/重启） */
+$('btnLpMute').addEventListener('click', async ()=>{
+  if (!curSerial) return;
+  const r = await api('/api/key', {serial: curSerial, key: 'voldown'});  // 简易静音：无 media 静音键，长按音量-近似
+  for (let i = 0; i < 3; i++) await api('/api/key', {serial: curSerial, key: 'voldown'});
+  toast('已调低音量（模拟静音）', 'ok');
+});
+$('btnLpWake').addEventListener('click', async ()=>{ if (curSerial) await api('/api/key', {serial: curSerial, key: 'wake'}); toast('已点亮屏幕', 'ok'); });
+$('btnLpSleep').addEventListener('click', async ()=>{ if (curSerial) await api('/api/key', {serial: curSerial, key: 'sleep'}); toast('已熄屏', 'ok'); });
+$('btnLpRotate').addEventListener('click', async ()=>{
+  if (!curSerial) return;
+  await api('/api/text', {serial: curSerial, text: 'content insert --bind settings:system:user_rotation 1'});
+  toast('已请求横屏', 'ok');
+});
+$('btnLpLock').addEventListener('click', async ()=>{
+  if (!curSerial) return;
+  await api('/api/key', {serial: curSerial, key: 'sleep'});
+  toast('已锁屏', 'ok');
+});
+$('btnLpReboot').addEventListener('click', async ()=>{
+  if (!curSerial || !confirm('确定重启该设备？')) return;
+  showPanel(false);
+  stopLive();
+  await api('/api/key', {serial: curSerial, key: 'power'});
+  await api('/api/key', {serial: curSerial, key: 'power'});
+  toast('已发送重启组合键');
 });
 $('btnLiveSend').addEventListener('click', async ()=>{
   const t = $('liveTextInput').value;
@@ -1018,14 +1101,8 @@ $('btnLiveSend').addEventListener('click', async ()=>{
   setTimeout(startLive, 1200);
 });
 $('liveTextInput').addEventListener('keydown', e=>{ if (e.key === 'Enter') $('btnLiveSend').click(); });
-$('liveFpsSlider').addEventListener('input', e=>{
-  const v = parseInt(e.target.value, 10);
-  livePollMs = v * 100;
-  $('liveFpsLabel').textContent = (v/10).toFixed(1) + 's';
-  if (liveTimer) startLive();
-});
-/* liveView 的 dock 按键复用 KEYMAP */
-document.querySelectorAll('#liveDock [data-key]').forEach(b=>{
+/* livePanel 的功能键复用 KEYMAP */
+document.querySelectorAll('#livePanel [data-key]').forEach(b=>{
   b.addEventListener('click', async ()=>{
     if (!curSerial) return;
     stopLive();
