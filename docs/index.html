@@ -967,7 +967,8 @@ stage.addEventListener('touchend', async e=>{
     if (sy <= img.naturalHeight * 0.08) sy = 2;
     if (ey >= img.naturalHeight * 0.92) ey = Math.max(0, img.naturalHeight - 2);
     if (Math.hypot(ex - sx, ey - sy) > 20){
-      await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(600, dur)});
+      // launcher 手势要求快速滑动：dur 压到 ≤300ms 才被识别为上滑/返回手势
+      await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(300, dur)});
       setTimeout(liveTick, 120);
     }
   }
