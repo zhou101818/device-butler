@@ -967,7 +967,6 @@ stage.addEventListener('touchend', async e=>{
   }
   tStart = null; pinchDist = 0;
 }, {passive: true});
-let imgScale = 1;
 /* 桌面鼠标点击兼容（MuMu/桌面浏览器测试路径） */
 stage.addEventListener('click', async e=>{
   if (!curSerial || e.pointerType === undefined || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) return; // 触屏设备已有 touch 事件，避免双发
