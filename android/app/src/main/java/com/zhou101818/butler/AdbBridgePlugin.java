@@ -167,6 +167,25 @@ public class AdbBridgePlugin extends Plugin {
         return d;
     }
 
+    /** input 类命令专用临时连接：不复用被截图流占用的主连接（dadb 消息队列跨流干扰会吞掉 input 命令） */
+    private void execOnFreshConn(PluginCall call, String serial, String cmd) {
+        synchronized (lockFor(serial)) {
+            Dadb tmp = null;
+            try {
+                String host = serial.split(":")[0];
+                int port = Integer.parseInt(serial.split(":")[1]);
+                tmp = Dadb.create(host, port, loadKeyPair());
+                tmp.shell(cmd);
+                try { Thread.sleep(350); } catch (InterruptedException ignored) {}
+                call.resolve();
+            } catch (Throwable t) {
+                call.reject(String.valueOf(t.getMessage()));
+            } finally {
+                if (tmp != null) { try { tmp.close(); } catch (Exception ignored) {} }
+            }
+        }
+    }
+
     private void dropClient(String serial) {
         Dadb d = clients.remove(serial);
         propsCache.remove(serial);
@@ -355,74 +374,42 @@ public class AdbBridgePlugin extends Plugin {
     @PluginMethod
     public void tap(PluginCall call) {
         final String serial = call.getString("serial", "");
-        async(call, () -> {
-            synchronized (lockFor(serial)) {
-                try {
-                    Dadb d = client(serial);
-                    d.shell("input tap " + call.getInt("x", 0) + " " + call.getInt("y", 0));
-                    call.resolve();
-                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
-            }
-        });
+        final int x = call.getInt("x", 0), y = call.getInt("y", 0);
+        async(call, () -> execOnFreshConn(call, serial, "input tap " + x + " " + y));
     }
 
     @PluginMethod
     public void key(PluginCall call) {
         final String serial = call.getString("serial", "");
-        async(call, () -> {
-            synchronized (lockFor(serial)) {
-                try {
-                    Dadb d = client(serial);
-                    String key = call.getString("key", "");
-                    java.util.Map<String, String> map = new java.util.HashMap<>();
-                    map.put("home", "3"); map.put("back", "4"); map.put("menu", "82");
-                    map.put("volup", "24"); map.put("voldown", "25"); map.put("power", "26");
-                    map.put("recents", "187"); map.put("wake", "224"); map.put("sleep", "223");
-                    map.put("up", "19"); map.put("down", "20"); map.put("left", "21"); map.put("right", "22"); map.put("confirm", "23");
-                    String code = map.containsKey(key) ? map.get(key) : key;
-                    d.shell("input keyevent " + code);
-                    call.resolve();
-                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
-            }
-        });
+        final String key = call.getString("key", "");
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        map.put("home", "3"); map.put("back", "4"); map.put("menu", "82");
+        map.put("volup", "24"); map.put("voldown", "25"); map.put("power", "26");
+        map.put("recents", "187"); map.put("wake", "224"); map.put("sleep", "223");
+        map.put("up", "19"); map.put("down", "20"); map.put("left", "21"); map.put("right", "22"); map.put("confirm", "23");
+        final String code = map.containsKey(key) ? map.get(key) : key;
+        async(call, () -> execOnFreshConn(call, serial, "input keyevent " + code));
     }
 
     @PluginMethod
     public void swipe(PluginCall call) {
         final String serial = call.getString("serial", "");
-        async(call, () -> {
-            synchronized (lockFor(serial)) {
-                try {
-                    Dadb d = client(serial);
-                    d.shell("input swipe " + call.getInt("x1", 0) + " " + call.getInt("y1", 0)
-                            + " " + call.getInt("x2", 0) + " " + call.getInt("y2", 0) + " " + call.getInt("dur", 300));
-                    // 留 400ms 让远端 input 完成（launcher 手势识别需要完整 swipe 周期后不被打断）
-                    try { Thread.sleep(400); } catch (InterruptedException ignored) {}
-                    call.resolve();
-                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
-            }
-        });
+        final int x1 = call.getInt("x1", 0), y1 = call.getInt("y1", 0), x2 = call.getInt("x2", 0), y2 = call.getInt("y2", 0), dur = call.getInt("dur", 300);
+        async(call, () -> execOnFreshConn(call, serial, "input swipe " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + dur));
     }
 
     @PluginMethod
     public void text(PluginCall call) {
         final String serial = call.getString("serial", "");
-        async(call, () -> {
-            synchronized (lockFor(serial)) {
-                try {
-                    Dadb d = client(serial);
-                    String t = call.getString("text", "");
-                    if (t.isEmpty()) { call.reject("空文本"); return; }
-                    t = t.replace(" ", "%s")
-                         .replace("&", "\\&").replace("<", "\\<").replace(">", "\\>")
-                         .replace("|", "\\|").replace("(", "\\(").replace(")", "\\)")
-                         .replace(";", "\\;").replace("'", "\\'").replace("\"", "\\\"")
-                         .replace("$", "\\$").replace("`", "\\`").replace("*", "\\*").replace("~", "\\~");
-                    d.shell("input text " + t);
-                    call.resolve();
-                } catch (IOException e) { call.reject(String.valueOf(e.getMessage())); }
-            }
-        });
+        String t = call.getString("text", "");
+        if (t == null || t.isEmpty()) { call.reject("空文本"); return; }
+        t = t.replace(" ", "%s")
+             .replace("&", "\\&").replace("<", "\\<").replace(">", "\\>")
+             .replace("|", "\\|").replace("(", "\\(").replace(")", "\\)")
+             .replace(";", "\\;").replace("'", "\\'").replace("\"", "\\\"")
+             .replace("$", "\\$").replace("`", "\\`").replace("*", "\\*").replace("~", "\\~");
+        final String cmd = "input text " + t;
+        async(call, () -> execOnFreshConn(call, serial, cmd));
     }
 
     @PluginMethod
