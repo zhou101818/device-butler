@@ -970,10 +970,16 @@ stage.addEventListener('touchend', async e=>{
     if (sy >= img.naturalHeight * 0.92) sy = edgeY;
     if (ey >= img.naturalHeight * 0.92) ey = edgeY;
     if (Math.hypot(ex - sx, ey - sy) > 20){
-      // launcher 手势要求快速滑动：dur 压到 ≤300ms；先停轮询避免 dadb 并发流竞争
-      stopLive();
-      await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(300, dur)});
-      setTimeout(startLive, 1200);
+      // launcher 手势要求快速滑动。给 inflight 截图留出收尾时间后直发（实验证明绕开轮询尾巴即稳定）
+      const B = ADB();
+      if (B){
+        await new Promise(r => setTimeout(r, 420));
+        try { await B.swipe({serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(300, dur)}); } catch(e){}
+      } else {
+        stopLive();
+        await api('/api/swipe', {serial: curSerial, x1: sx, y1: sy, x2: ex, y2: ey, dur: Math.min(300, dur)});
+        setTimeout(startLive, 1200);
+      }
     }
   }
   tStart = null; pinchDist = 0;
